@@ -3,15 +3,15 @@
 Date: 21 October 2026 (Asia/Jakarta).
 
 ## Completed checks
-GitHub Actions run39484594831, commit98c240f96952336d1c29324afda42950c678ce6e:
+Latest verified GitHub Actions run39485332496, commit e97eefabd56e31afcf2c4eecc153cab09727fe01:
 - npm install: success, audit reported0 vulnerabilities.
 - TypeScript: passed.
-- Node unit tests: passed.
+- Node unit tests:31 passed,0 failed.
 - Next.js production build: passed.
 - Playwright: both browser tests passed, including320px overflow checks and a full action/question→boss reaction→round2 path.
 - Dependency lockfile generated and retained by the successful CI job.
 
-Follow-up UI feedback, debug harness, tab-identity and safe numeric-boundary changes are checked by the latest CI run; consult that run's result.
+The verified run includes final floating/critical/block feedback, development performance controls, isolated tab identities, safe numeric boundaries and reconnect regression tests. Documentation-only updates do not change the verified application inputs.
 
 Connected Supabase:
 - Migration nova_foundation_lobby applied as version20261020192046.

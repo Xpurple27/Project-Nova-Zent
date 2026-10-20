@@ -24,3 +24,8 @@ Attached GAME_ART_BIBLE and sprite pipeline could not be read. Manifest-compatib
 Supabase anonymous sign-ins must be enabled in the project's Auth settings.
 The production offline lab is opt-in using server environment NOVA_ENABLE_OFFLINE_DEMO=1.
 Normal production builds return404 for /dev/combat; debug mutation controls are never rendered in production.
+
+## Verified gate summary
+CI run39485332496 passed TypeScript,31 unit tests, production build and2 browser tests.
+SQL integration/regression tests passed against Supabase and rolled back fixtures.
+Anonymous Sign-Ins remains OFF; live guest/multi-device lobby acceptance is pending activation and UAT.
