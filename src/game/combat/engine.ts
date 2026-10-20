@@ -46,7 +46,7 @@ function hit(s:CombatState,a:CombatAction,p:Character,k:SkillDefinition):number 
  let target=a.targetId==="core"&&s.boss.core&&s.boss.core.hp>0?"core":"boss";
  const hp=target==="core"?s.boss.core!.hp:s.boss.hp,max=target==="core"?s.boss.core!.maxHp:s.boss.maxHp;
  let special=1;
- if(k.id==="thief.quick_strike"&&a.performance==="PERFECT")special=1.35;
+ if(k.id==="thief.quick_strike"&&a.performance==="PERFECT"){special=1.35;event(s,"CRITICAL_HIT","CRITICAL — Quick Strike ×1.35",undefined,p.id,target);}
  if(k.id==="thief.shadow_execution")special=Math.min(1.8,2-hp/max);
  const focused=magnitude(s,"FOCUS_DAMAGE",p.id);
  const damage=roundHalfUp(k.base*performanceMultiplier(a.performance)*s.resonance*outputModifier(s,p.id)*(1+focused)*(1+s.combo)*special*(target==="boss"?1+magnitude(s,"EXPOSE","boss"):1)*(target==="boss"&&s.boss.phase===3?1.15:1)*(target==="boss"?1-magnitude(s,"ARMOR","boss"):1));
@@ -123,7 +123,10 @@ export function resolveReaction(input:CombatState,performance:MathPerformance):C
  const s=structuredClone(input),pending=s.pending!;
  if(pending.kind!=="REACTION")throw new Error("INVALID_PENDING");
  const p=s.party.find(x=>x.id===pending.actorId)!;
- const damage=incomingDamage(s,p,pending.intent.skill==="SPEAR"?BOSS.spear:BOSS.claw,performance);
+ const base=pending.intent.skill==="SPEAR"?BOSS.spear:BOSS.claw;
+ const beforeReaction=incomingDamage(s,p,base);
+ const damage=incomingDamage(s,p,base,performance);
+ if(beforeReaction>damage)event(s,"BLOCKED",damage===0?"DODGED — no incoming damage":"BLOCKED "+(beforeReaction-damage),beforeReaction-damage,p.id,p.id);
  hurt(s,p,damage);consume(s,"FROST","boss");consume(s,"FOCUS_TIME",p.id);
  if(p.hp>0&&p.classId==="HEALER")heal(s,p,performance==="PERFECT"?40:performance==="SUCCESS"?20:0,p.id);
  gainUltimate(s,p,performance==="PERFECT"?5:performance==="SUCCESS"?3:0);

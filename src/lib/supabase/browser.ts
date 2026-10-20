@@ -8,8 +8,10 @@ export function browserSupabase():SupabaseClient {
  if(client)return client;
  const url=process.env.NEXT_PUBLIC_SUPABASE_URL,key=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
  if(!url||!key)throw new Error("SUPABASE_NOT_CONFIGURED");
- // Tab-scoped credentials allow separate guest players in independently opened tabs.
- client=createClient(url,key,{auth:{storage:window.sessionStorage,storageKey:"nz.auth.v1",persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+ // Unique storage keys also isolate Supabase BroadcastChannel auth events between guest tabs.
+ let tabId=window.sessionStorage.getItem("nz.tab.v1");
+ if(!tabId){tabId=crypto.randomUUID();window.sessionStorage.setItem("nz.tab.v1",tabId);}
+ client=createClient(url,key,{auth:{storage:window.sessionStorage,storageKey:"nz.auth.v1."+tabId,persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
  return client;
 }
 export function ensureGuest():Promise<string> {
