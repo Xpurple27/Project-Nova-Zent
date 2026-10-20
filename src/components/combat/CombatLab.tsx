@@ -2,7 +2,7 @@
 "use client";
 import { useEffect,useRef,useState } from "react";
 import { CHARACTERS,GAME,SKILLS,SKILL_BY_ID } from "@/game/config";
-import { CLASSES,type CharacterClass,type CombatAction,type CombatState,type DevelopmentQuestion,type MathPerformance } from "@/game/core/types";
+import { CLASSES,type CharacterClass,type CombatAction,type CombatState,type CombatEvent,type DevelopmentQuestion,type MathPerformance } from "@/game/core/types";
 import { createCombat,resolveRound,resolveReaction,resolveRune,unavailableReason } from "@/game/combat/engine";
 import { magnitude } from "@/game/combat/effects";
 import { developmentQuestion } from "@/game/questions/development";
@@ -24,7 +24,7 @@ export default function CombatLab({debug}:{debug:boolean}){
  const [tasks,setTasks]=useState<Task[]>([]),[index,setIndex]=useState(0),[results,setResults]=useState<Record<string,MathPerformance>>({});
  const [context,setContext]=useState<"ACTION"|"REACTION"|"RUNE">("ACTION");
  const [feedback,setFeedback]=useState<MathPerformance|null>(null),[error,setError]=useState(""),[muted,setMuted]=useState(true);
- const [shown,setShown]=useState(state.events.slice(-1)[0]);
+ const [shown,setShown]=useState<CombatEvent|undefined>(state.events.at(-1));
  const [audio]=useState(()=>createAudioManager());
  const timeout=useRef<ReturnType<typeof setTimeout>|null>(null),seen=useRef(0);
  useEffect(()=>()=>{if(timeout.current)clearTimeout(timeout.current);},[]);
