@@ -34,3 +34,10 @@ test("room code and invalid projection validation",()=>{
  assert.throws(()=>parseRoom({}),/INVALID_ROOM_RESPONSE/);
  assert.equal(weightedIndex([45,25,17,13],0),0);assert.equal(weightedIndex([45,25,17,13],.999),3);
 });
+
+test("safe integer boundary and invalid time/random inputs",()=>{
+ assert.equal(roundHalfUp(Number.MAX_SAFE_INTEGER),Number.MAX_SAFE_INTEGER);
+ assert.throws(()=>roundHalfUp(Number.MAX_SAFE_INTEGER+1),/UNSAFE_EFFECT/);
+ assert.throws(()=>gradeAnswer(true,1,Infinity),/NON_FINITE/);
+ assert.throws(()=>weightedIndex([1,2],NaN),/INVALID_WEIGHTS/);
+});

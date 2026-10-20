@@ -11,11 +11,12 @@ GitHub Actions run39484594831, commit98c240f96952336d1c29324afda42950c678ce6e:
 - Playwright: both browser tests passed, including320px overflow checks and a full action/question→boss reaction→round2 path.
 - Dependency lockfile generated and retained by the successful CI job.
 
-Follow-up UI feedback, debug harness and tab-identity changes must pass the next CI run before being considered verified.
+Follow-up UI feedback, debug harness, tab-identity and safe numeric-boundary changes are checked by the latest CI run; consult that run's result.
 
 Connected Supabase:
 - Migration nova_foundation_lobby applied as version20261020192046.
 - Migration nova_foreign_key_indexes applied as version20261020193646.
+- Migration nova_reconnect_projection applied as version20261020193917; reconnect regression SQL test passed.
 - supabase/tests/lobby.sql passed transactionally, with authenticated role/claims.
 - Tests cover create idempotency, key reuse rejection,4-member capacity, outsider projection/presence denial, private HP read denial, direct row-write denial, unique classes, reconnect class preservation, inactivity/grace, coordinator transfer, removing an inactive member, readiness, start and late-join rejection.
 - Fixtures were rolled back; no anonymous test users remain.

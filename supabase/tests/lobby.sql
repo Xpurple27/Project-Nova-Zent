@@ -43,6 +43,12 @@ begin
  exception when others then if sqlerrm not like '%CLASS_TAKEN%' then raise;end if;end;
  room:=public.nz_lobby_v1('HEARTBEAT',jsonb_build_object('roomId',rid),gen_random_uuid());
  if not exists(select 1 from jsonb_array_elements(room->'players') p where p->>'userId'=users[2]::text and p->>'classId'='MAGE') then raise exception 'TEST_FAILED: reconnect class';end if;
+ -- Regression: own heartbeat must publish ACTIVE after reconciling its own expired grace.
+ execute 'reset role';
+ update public.room_players set last_seen_at=clock_timestamp()-interval '61 seconds' where room_id=rid and auth_user_id=users[2];
+ execute 'set local role authenticated';
+ room:=public.nz_lobby_v1('HEARTBEAT',jsonb_build_object('roomId',rid),gen_random_uuid());
+ if not exists(select 1 from jsonb_array_elements(room->'players') p where p->>'userId'=users[2]::text and p->>'status'='ACTIVE' and p->>'classId'='MAGE') then raise exception 'TEST_FAILED: stale inactive reconnect projection';end if;
  -- Simulate a missing coordinator heartbeat, then return to an authenticated member.
  execute 'reset role';
  update public.room_players set last_seen_at=clock_timestamp()-interval '61 seconds' where room_id=rid and auth_user_id=users[1];
