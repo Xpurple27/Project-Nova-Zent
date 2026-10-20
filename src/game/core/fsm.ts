@@ -1,0 +1,20 @@
+
+import type { GameState } from "./types";
+const transitions:Record<GameState,readonly GameState[]>={
+ LOBBY:["CHARACTER_SELECT","ABORTED"],CHARACTER_SELECT:["READY","ABORTED"],READY:["CHARACTER_SELECT","STORY","ABORTED"],
+ STORY:["EXPLORATION","ENCOUNTER_START","ENDING","SUSPENDED","ABORTED"],EXPLORATION:["STORY","ENCOUNTER_START","SUSPENDED","ABORTED"],
+ ENCOUNTER_START:["TURN_START","ABORTED"],TURN_START:["COMBAT_PLANNING","DEFEAT","SUSPENDED","ABORTED"],
+ COMBAT_PLANNING:["MATH_CHALLENGE","ABORTED"],MATH_CHALLENGE:["LOCK_ACTION","TURN_END","ABORTED"],
+ LOCK_ACTION:["COMBAT_RESOLUTION","ABORTED"],COMBAT_RESOLUTION:["BOSS_ACTION","TURN_END","ABORTED"],
+ BOSS_ACTION:["DEFENSIVE_REACTION","MATH_CHALLENGE","TURN_END","ABORTED"],DEFENSIVE_REACTION:["TURN_END","ABORTED"],
+ TURN_END:["TURN_START","VICTORY","DEFEAT","SUSPENDED","ABORTED"],VICTORY:["STORY","ENDING"],DEFEAT:["ENDING"],
+ ENDING:["COMPLETED"],SUSPENDED:["TURN_START","STORY","EXPLORATION","ABORTED"],COMPLETED:[],ABORTED:[]
+};
+export function canTransition(from:GameState,to:GameState,context?:"ACTION"|"TEAM_RUNE"):boolean {
+ if(from==="MATH_CHALLENGE" && context) return to==="ABORTED" || to===(context==="ACTION"?"LOCK_ACTION":"TURN_END");
+ return transitions[from].includes(to);
+}
+export function transition(from:GameState,to:GameState,context?:"ACTION"|"TEAM_RUNE"):GameState {
+ if(!canTransition(from,to,context))throw new Error("INVALID_TRANSITION: "+from+" → "+to);return to;
+}
+export { transitions };

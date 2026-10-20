@@ -1,46 +1,54 @@
+
 # NOVA ZENITH
+A mobile-first cooperative mathematical RPG for 1–4 players.
 
-Web-based cooperative turn-based mathematical RPG for 1–4 players, designed for mobile and desktop.
+This delivery covers **High 1–5**: application foundation, deterministic offline combat, Abyss Guardian, combat UI, and a server-authoritative Supabase lobby. Online combat synchronization belongs to Extra High #2 and is not implemented here.
 
-## Project status
+## Run
+Node22 or later. Copy .env.example to .env.local and add your Supabase publishable key.
+Enable Anonymous Sign-Ins in Supabase Auth. Do not put a service-role or secret key in frontend configuration.
 
-This repository has been initialized with the canonical project name **NOVA ZENITH**. Application implementation, database migrations, builds, and runtime tests have not started.
+    npm install
+    npm run dev
 
-The MVP architecture blueprint is available in the originating project conversation. The detailed implementation prompts for stages 1–5 and the two art references have been attached to that conversation, but have not yet been read successfully because its workspace execution environment is unavailable. They must be inspected and reconciled with the blueprint before implementing those stages. Do not infer their contents from their filenames or claim that they have been imported into this repository.
+- / — NOVA ZENITH landing page.
+- /lobby — real Supabase guest room/class/ready foundation.
+- /dev/combat — offline QA battle lab in development.
 
-## MVP
+The production lab is disabled by default. Set server-side NOVA_ENABLE_OFFLINE_DEMO=1 to opt into the offline demo; production debug mutation controls remain disabled.
+This lab uses non-secret development questions, not the future secure online bank.
 
-- 1–4 players in a private room.
-- Four unique classes: Warrior, Mage, Thief, and Healer.
-- Simultaneous action selection with mathematical challenges integrated into combat.
-- One vertical slice: village, exploration, Shadow Hound, Corrupted Shaman, Ancient Ruins, Abyss Guardian, and ending.
-- Target run duration: 15–25 minutes, subject to balancing and playtesting.
+## Verification
 
-## Planned stack
+    npm run typecheck
+    npm test
+    npm run build
+    npx playwright install chromium
+    NOVA_ENABLE_OFFLINE_DEMO=1 npm run test:e2e
 
-- Next.js, TypeScript, and Tailwind CSS.
-- Phaser for exploration and in-engine presentation.
-- Supabase Auth, PostgreSQL, and Realtime.
-- Vercel hosting.
+Build with NOVA_ENABLE_OFFLINE_DEMO=1 when testing the opt-in lab in a production server.
+GitHub Actions runs the checks and commits a generated lockfile only after all checks pass.
 
-## Authoritative gameplay boundary
+## Supabase
+Apply the migration in supabase/migrations to a fresh project; it includes schema, constraints, RLS, lobby RPC and projection publication.
+The connected Project Nova Zent received this migration through the project connector.
+supabase/seed.sql is optional development-only seed data, not a production question bank.
+supabase/tests/lobby.sql is a rollback-based integration test, not a data migration.
 
-The architecture blueprint specifies server-authoritative multiplayer, transactional and idempotent resolution, server deadlines, reconnect support, and ephemeral exploration movement. Browsers send intent; they do not determine authoritative damage, correctness, boss decisions, or outcomes.
+Guest credentials and the current room use sessionStorage. Independently opened tabs can represent separate guests; duplicated tabs may copy the same identity. Refreshing the same tab preserves membership. Clearing credentials or switching device does not restore an anonymous identity.
+Capacity counts four reserved memberships, including disconnected members. Coordinator can release an inactive slot after the60s grace period.
+START locks a ready roster and stops at STORY/AWAITING_COMBAT_INTEGRATION.
 
-The detailed offline combat-engine prompt must be reconciled with this boundary before implementation. It must not silently introduce a competing source of gameplay truth.
+## Contracts
+- docs/NOVA_ZENITH_MVP_BLUEPRINT.md
+- docs/IMPLEMENTATION_STATUS.md
+- src/game/config — centralized stats and skills
+- src/game/core — types, FSM, math and audio port
+- src/game/combat and boss — OFFLINE_QA only
+- src/game/multiplayer — lobby adapter
+- src/game/assets — replaceable asset interface
 
-## Implementation stages awaiting prompt review
-
-1. Project skeleton.
-2. Offline combat engine.
-3. Boss engine.
-4. Combat UI.
-5. Lobby.
-
-The headings above are the stage names provided by the project owner, not a substitute for their attached requirements. No stage is marked complete.
+Current art is an original placeholder. Attached art references have not yet been inspected because the authoring runtime was unavailable.
 
 ## Credentials
-
-Never commit service-role keys, secret keys, access tokens, database passwords, or local environment files. Frontend configuration may use a Supabase publishable key. Privileged credentials must remain outside the browser and repository.
-
-No credentials are included in this repository initialization.
+Use only publishable configuration in the browser. Never commit .env.local, service-role keys, secret keys, access tokens or database passwords.
