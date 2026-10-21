@@ -79,3 +79,16 @@ test("rejected Auth consumes token and retry requires a fresh verification",asyn
  await captcha(page,"callback","replacement-token");await login.click();
  await expect(page.getByRole("button",{name:/Create expedition/})).toBeEnabled();expect(signups).toBe(2);
 });
+
+test('stalled hCaptcha SDK offers a bounded retry instead of waiting forever',async({page})=>{
+ await page.addInitScript(()=>{const original=window.setTimeout.bind(window);window.setTimeout=((handler:TimerHandler,delay?:number,...args:unknown[])=>original(handler,delay===15000?100:delay,...args)) as typeof window.setTimeout;});
+ await page.route('**://js.hcaptcha.com/**',r=>r.fulfill({contentType:'application/javascript',body:'/* SDK never calls its ready callback */'}));
+ await page.goto('/lobby');const region=page.getByRole('region',{name:'Verifikasi adventurer'});await expect(region.getByRole('alert')).toContainText('belum selesai dimuat');await expect(region.getByRole('button',{name:'Muat ulang halaman',exact:true})).toBeVisible();await expect(region.getByRole('button',{name:'Lanjutkan sebagai guest'})).toBeDisabled();
+});
+
+test('revoked refresh token offers verification and discards the stale room pointer',async({page})=>{
+ const stored={...session(),expires_at:1};
+ await page.addInitScript(stored=>{sessionStorage.setItem('nz.tab.v1','expired');sessionStorage.setItem('nz.auth.v1.expired',JSON.stringify(stored));sessionStorage.setItem('nz.room.v1','00000000-0000-4000-8000-000000000001');},stored);
+ await page.route('**/auth/v1/token?grant_type=refresh_token',r=>r.fulfill({status:400,headers:{'x-supabase-api-version':'2024-01-01'},json:{code:'refresh_token_not_found',msg:'Invalid Refresh Token'}}));
+ await page.goto('/lobby');await expect(page.getByRole('region',{name:'Verifikasi adventurer'})).toBeVisible();expect(await page.evaluate(()=>sessionStorage.getItem('nz.room.v1'))).toBeNull();
+});

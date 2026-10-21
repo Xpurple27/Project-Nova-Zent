@@ -5,7 +5,7 @@ Decision and evidence: [EXTRA_HIGH_3_FINAL_AUDIT.md](EXTRA_HIGH_3_FINAL_AUDIT.md
 ## Deployment and backend
 - [x] Confirm GitHub repository and intended Vercel project `novazen-rpg` / Supabase project `bbeymvooubwsbrkeukuu`.
 - [x] Configure production `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and `NEXT_PUBLIC_HCAPTCHA_SITE_KEY` using the exact frontend names. Existing unprefixed names are insufficient for a browser bundle.
-- [ ] Confirm the final audit commit is READY on `https://novazen-rpg.vercel.app` and the guest form is visible after a fresh load.
+- [x] Confirm the audited code commit is READY on `https://novazen-rpg.vercel.app` and the guest form is visible after a fresh load.
 - [x] Production build rejects missing public configuration or a non-publishable browser key.
 - [x] Compare 13 repository migrations with connected database history; keep private grading/backend RPCs service-only.
 - [x] Confirm watchdog/cleanup jobs are active; resolver progresses independently of the coordinator.

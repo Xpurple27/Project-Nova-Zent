@@ -38,7 +38,7 @@ The relational combatants/actions/assignments/events are audit mirrors; canonica
 # Critical Findings
 | Issue | Root cause / reproduction | Fix | Regression / status |
 |---|---|---|---|
-| C-01 Production guest entry blocked | Real Vercel `/lobby` returned Unavailable / SUPABASE_NOT_CONFIGURED. Vercel had unprefixed SUPABASE_PUBLISHABLE_KEY / HCAPTCHA_SITE_KEY and legacy ANON_KEY; frontend expected NEXT_PUBLIC names | Added the two exact public production env names; Vercel production build now rejects missing configuration or a non-publishable browser key | Environment guard test; final deployed guest-form check recorded below. No secrets decrypted or exposed |
+| C-01 Production guest entry blocked | Real Vercel `/lobby` returned Unavailable / SUPABASE_NOT_CONFIGURED. Vercel had unprefixed SUPABASE_PUBLISHABLE_KEY / HCAPTCHA_SITE_KEY and legacy ANON_KEY; frontend expected NEXT_PUBLIC names | Added the two exact public production env names; Vercel production build now rejects missing configuration or a non-publishable browser key | Environment guard test; deployed guest form confirmed on a231fa7; missing-config error removed. No secrets decrypted or exposed |
 
 # High Findings
 | Issue | Root cause | Fix | Regression / status |
@@ -52,6 +52,8 @@ The relational combatants/actions/assignments/events are audit mirrors; canonica
 | M-01 Presentation backlog on background/resume | Bound queue to latest12 events (≤2.16s), discard while hidden and rebase cursor on visibility change; snapshot remains immediate | Fixed; pure regression + browser presentation/audio checks |
 | M-02 Unbounded body read / accidental command bursts | Stream body limit8KiB, per-isolate authenticated budget40/10s with bounded2048 entries; 413/429 responses | Fixed baseline guard; broader global/IP/rejected-lobby protection remains OPEN |
 | M-03 Balance target outliers | Do not silently alter frozen stats/formulas. Measure policy/composition results below and require human validation/tuning decision | OPEN |
+| M-05 Stalled CAPTCHA SDK | After15s without SDK readiness, show retry/page reload instead of indefinite waiting; late onLoad clears the loader warning | Fixed; stalled-script browser regression failed before fix, passes after |
+| M-06 Stale room after invalid Auth storage | SDK already returns to verification after revoked refresh token, but saved room pointer survived. Clear that pointer only when no session remains; transient network errors preserve it | Fixed; revoked-token and corrupt-storage browser cases pass |
 | M-04 Fresh backend reproducibility | 13 migrations match live DB; document exact private export and environment-specific watchdog setup | Fresh isolated migration replay NOT TESTED (no disposable Postgres/Supabase instance available) |
 
 # Low Findings
@@ -89,7 +91,7 @@ Main/reaction/Rune input owns an immutable deadline. Missing planning defaults t
 - Advisor: [pg_net namespace](https://supabase.com/docs/guides/database/database-linter?lint=0014_extension_in_public); [anonymous policy review](https://supabase.com/docs/guides/database/database-advisors?queryGroups=lint&lint=0012_auth_allow_anonymous_sign_ins). No extension relocation or Auth configuration weakening was performed.
 
 # Mobile Audit
-23 Chromium browser tests pass: widths320/360/375/390/412 and1280, long formulas/options, skill controls, dialogue/telegraphs, audio and touch. Touch CDP injection moves the actor after scrolling the control into view; portrait→landscape→portrait retains the world. A failed sprite load does not crash movement. These are emulated browser tests. Physical Android Chrome, physical iOS/Safari and adverse real mobile networks: **NOT TESTED**.
+25 Chromium browser tests pass: widths320/360/375/390/412 and1280, long formulas/options, skill controls, dialogue/telegraphs, audio and touch. Touch CDP injection moves the actor after scrolling the control into view; portrait→landscape→portrait retains the world. A failed sprite load does not crash movement. These are emulated browser tests. Physical Android Chrome, physical iOS/Safari and adverse real mobile networks: **NOT TESTED**.
 
 # Question Bank Audit
 120 reviewed ACTIVE production-v1 items,40 per difficulty;14 categories. Affinity counts overlap: Warrior55/Mage35/Thief26/Healer40. Zero exact normalized prompt duplicates;120 template-family labels. Structural validator and restricted-AST exact rational checks pass for all120: exactly four distinct numeric choices and exactly one matching official key; derivations compared to stored independent rational values. All prompt categories, including Hard word problems, were inspected. This is agent/editorial + programmatic QA, not independent teacher/psychometric review. Estimated7/12/19s burden fits12/18/25s limits on paper; actual learner solving-time suitability: **NOT TESTED**.
@@ -113,7 +115,7 @@ Server category affinity preference/fresh run history/fallback/per-phase distinc
 | npm run check:edge | PASS |
 | SQL lobby.sql / combat.sql / exploration.sql | All3 PASS, rolled-back fixtures |
 | Production build | PASS, Vercel-production environment validation enabled |
-| Browser E2E | 23/23 PASS on final source / successful production build (15.0s) |
+| Browser E2E | 25/25 PASS on final source / successful production build (15.3s) |
 | Private content validation + arithmetic QA | 120/120 PASS |
 | Live API security/concurrency probe | 10 assertions PASS |
 | Offline balance sweep | 1,350 seeded boss fights,15 nonempty unique-class compositions ×3 profiles ×30 seeds |
@@ -156,10 +158,29 @@ Five confirmed synthetic Auth identities were created only through a short-lived
 1. Demonstrate fresh human hCaptcha/anonymous sign-in and the full deployed smartphone flow, after the configuration fix is deployed.
 2. Execute the physical Android/desktop 1P/4P checklist with recorded devices/networks; do not substitute local emulation/synthetic users for that gate.
 3. Review support-heavy balance/timer outliers with actual learners; verify the intended run/round expectations before broad school/public invitations.
-4. Verify the final commit deployment and repeat the fresh-guest entry check after the public environment correction; do not infer a deployed pass from a local build.
+
+The public environment correction is deployed and the guest form/protection check passed; human challenge acceptance and the final full deployed fresh-guest chain remain unverified, not assumed.
 
 # Final Recommendation
 **NOT RELEASE READY** for broad public launch under the prompt's fresh-human-smartphone definition. Fixed code is suitable for continued controlled acceptance testing. Do not proceed to Stage2 or claim release certification from automated engine/browser evidence alone.
 
 # Changed files and deployment boundary
 Changes are confined to ending/leave exit, bounded presentation/canonical comparison, Edge HTTP guard, production env validation, read-only pinned CI, tests/audit harnesses and documentation. Existing combat formulas/stats,13 SQL migrations, active bank content and campaign order are unchanged. nova-combat version7 ACTIVE uses the checked generated resolver bundle. This audit adds no permanent database migration. Vercel production received only the two intended PUBLIC variable names; existing secret values were never decrypted.
+
+# Final deployment verification
+Code hardening commit `a231fa7cc27684072dbcd451b46d0bca7e494300` deployed automatically to production as `dpl_8Xp9BN3BkhrAb7g65jdixYa1S2qx`, READY on https://novazen-rpg.vercel.app. Build duration was about20.1s. GitHub Actions run39599769980 / job119221015426 completed SUCCESS, including install, Edge drift, lint, typecheck, tests, build and E2E. This is observed remote CI evidence.
+
+Fresh production browser now renders the verification form (previously Unavailable), has no page errors or320/390px overflow, and correctly disables Create/Join until guest verification. Auth settings report anonymous users enabled. A deliberately invalid CAPTCHA request returns400 / captcha_failed and creates no user (SQL count0). A successful HUMAN CAPTCHA/sign-in is still NOT TESTED. The widget iframe was not ready in the short runner observation; hCaptcha script subsequently returned200 and asset requests were aborted on browser teardown. This does not prove hostname/human acceptance. Final source adds a15s readiness watchdog with retry/reload, covered by browser regression.
+
+The final auth-only refinement does not alter the engine or authenticated campaign transport. Full live solo/4P runs used the same server resolver/engine and UI combat/campaign code; final25 browser tests cover the additional guest-bootstrap recovery paths. A later documentation/auth refinement commit supersedes the deployment SHA above; its release state is checked in the final handoff.
+
+One incremental local Turbopack build failed opening a stale persistence cache (invalid digit). Generated output was preserved separately, then a fresh production build succeeded. One initial browser attempt ran before that valid build existed and is not counted as a product regression. A watchdog-test typing error was corrected before the final clean build. No failing check is counted as passing.
+
+| Change area | Major files |
+|---|---|
+| Production boot/guest recovery | next.config.ts; src/lib/validation/environment.ts; src/lib/supabase/browser.ts; src/components/lobby/GuestVerification.tsx |
+| Game exit/presentation | src/components/{combat/OnlineCombat,exploration/OnlineWorld}.tsx; src/game/multiplayer/synchronization.ts |
+| Edge protection | src/game/multiplayer/server/http-guard.ts; supabase/functions/nova-combat/{entry.ts,index.js} |
+| Regression/browser evidence | tests/release-hardening.test.ts; tests/browser/{guest-auth,release-recovery,touch-recovery,responsive}.spec.ts |
+| Reproducible probes | scripts/{uat-campaign,audit-browser,audit-live-security}.mjs; scripts/audit-balance.ts; scripts/audit-question-math.py |
+| Delivery/docs | .github/workflows/verify.yml; package.json/lock; README; current audit/checklist and historical contract/status/verification corrections |

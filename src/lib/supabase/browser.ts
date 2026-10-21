@@ -18,6 +18,7 @@ export function browserSupabase():SupabaseClient {
 export async function restoreGuest():Promise<string|null> {
  const {data,error}=await browserSupabase().auth.getSession();
  if(error)throw error;
+ if(!data.session)window.sessionStorage.removeItem("nz.room.v1");
  return data.session?.user.id??null;
 }
 export function ensureGuest(captchaToken:string):Promise<string> {
