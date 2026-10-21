@@ -34,7 +34,7 @@ The same Auth identity restores the same membership and state. GET returns HP/re
 
 ## Tests
 Typecheck, lint,46 Node tests, Edge drift check, production build and2 baseline browser tests pass. Both live SQL suites pass with rollback. Simulations1/2/4 players reach Victory. Live duplicate Start/answer/Ultimate and resolver races pass; direct HP mutation/private loader access and outsider snapshots are denied.
-See VERIFICATION.md for evidence and exact coverage.
+See [VERIFICATION.md](VERIFICATION.md) for evidence and exact coverage.
 
 ## Manual UAT
 Automated UAT drove four isolated browser sessions against the real backend, including class race, parallel actions, AFK, reaction reconnect, coordinator disconnect/refresh, Heavy/Core/Barrier, and one shared Victory on round9.214 durable events, state_version139, zero duplicated action groups, all canonical end states equal. This was four browser contexts, not four physical devices.
@@ -42,6 +42,6 @@ Automated UAT drove four isolated browser sessions against the real backend, inc
 ## Remaining issues
 Critical: none observed in completed combat checks.
 High: new public guest entry remains blocked by disabled Anonymous Sign-Ins; frontend is not deployed to Vercel in this task.
-Medium: question curriculum approval, broad-public rate hardening, pg_net namespace advisory, retention operations and physical-network UAT.
+Medium: public pilot seed replacement/private production import, question curriculum approval, broad-public rate hardening, pg_net namespace advisory, retention operations and physical-network UAT.
 Low: Auth password-protection advisory outside guest flow; placeholder art/audio; inactive QA history retained after teardown.
 The combat integration is implemented and verified for existing Auth sessions. Public guest launch remains gated by the environment setting; exploration/story polish has not begun.

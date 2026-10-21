@@ -47,3 +47,9 @@ A CLI invocation was rejected by automatic review for unidentified PostHog telem
 - Low: Auth leaked-password protection is disabled; MVP guest play has no password flow. Final art/audio remain placeholders.
 - Expected INFO:11 private tables have RLS and no user policies, implementing deliberate default deny.
 No unresolved Critical combat synchronization defect was observed in the completed runs. This is measured MVP evidence, not a claim of exhaustive concurrency or load coverage.
+
+## Final source check
+Implementation commit: cf38f22495764f6ef7ee27eff8116400271e59b8. Its final production build passed; the two browser tests were rerun successfully after restoring the runner's missing Chromium cache. Edge bundle check passed. Production dependency audit reported0 vulnerabilities (development dependencies excluded). No GitHub Actions run was observed for this API-created commit; remote CI success is not claimed.
+
+The pilot question/answer seed is readable in this public repository. RLS/API payloads hide assignment answer tokens, but this pilot content should be replaced by a private production import before launch.
+Advisory references: [pg_net namespace](https://supabase.com/docs/guides/database/database-linter?lint=0014_extension_in_public), [password protection](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection). The performance advisor reported only11 INFO unused-index findings; refer to [index review](https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index).
