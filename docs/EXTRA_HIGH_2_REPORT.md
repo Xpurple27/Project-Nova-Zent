@@ -1,5 +1,7 @@
 # NOVA ZENITH — Extra High2 implementation report
 
+Historical checkpoint. Current Auth/content/campaign/deployment findings are in EXTRA_HIGH_3_FINAL_AUDIT.md; the old remaining-issues list below is retained as history, not a current release verdict.
+
 ## Architecture implemented
 The browser sends intent. Supabase Edge authenticates the player, loads the private canonical document using database time, executes the exact shared TypeScript combat/boss engine and commits through a service-only PostgreSQL RPC. A session-row lock plus expected version makes the commit atomic. Cron/pg_net progresses due phases without a host or connected browser. Realtime only invalidates safe projections; GET recovers a complete snapshot.
 

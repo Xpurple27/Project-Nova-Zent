@@ -13,5 +13,7 @@ export class EventCursor {
 }
 export function canonicalState(snapshot:CombatSnapshot):string {
  // Excludes per-client assignments, identity, estimated clock and presentation history.
- return JSON.stringify({session:snapshot.sessionId,version:snapshot.version,turn:snapshot.turnId,phase:snapshot.phase,party:snapshot.party,boss:snapshot.boss,effects:snapshot.effects,combo:snapshot.combo,lastEventSeq:snapshot.lastEventSeq});
+ return JSON.stringify({session:snapshot.sessionId,room:snapshot.roomId,version:snapshot.version,turn:snapshot.turnId,phase:snapshot.phase,phaseId:snapshot.phaseId,deadline:snapshot.deadline,enemyId:snapshot.enemyId,campaign:snapshot.campaign,party:snapshot.party,boss:snapshot.boss,effects:snapshot.effects,combo:snapshot.combo,lastEventSeq:snapshot.lastEventSeq});
 }
+/** Snapshot truth is immediate; presentation catches up within 2.16s and never replays a hidden-tab backlog. */
+export function presentationEvents(queued:CombatEvent[],incoming:CombatEvent[],hidden:boolean):CombatEvent[]{return hidden?[]:[...queued,...incoming].slice(-12);}

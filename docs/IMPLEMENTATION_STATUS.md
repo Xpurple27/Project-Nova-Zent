@@ -1,5 +1,7 @@
 # NOVA ZENITH delivery status
 
+Current release decision: see EXTRA_HIGH_3_FINAL_AUDIT.md and MVP_RELEASE_CHECKLIST.md. Module completion does not certify public-release readiness.
+
 Current delivery: High1–13 and Extra High2 modules are implemented. Final lint/typecheck, 72 Node tests, 18 browser tests, database regression suites and production build pass. A live four-browser campaign reached the same ending state. See HIGH_6_13_EXECUTION.md for current evidence, decisions and limitations; Extra High3 release-readiness audit remains next.
 
 ## Previous Extra High2 checkpoint (historical)

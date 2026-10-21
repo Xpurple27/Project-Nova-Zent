@@ -1,7 +1,7 @@
 # NOVA ZENITH
 Mobile-first cooperative mathematical RPG for1–4 players.
 
-High 1–13 and Extra High 2 modules are implemented: shared authoritative combat, transactional lobby, Phaser exploration, synchronized story, two normal encounters, replaceable animations/VFX, mobile UI, original synth audio and 120 private production questions. Final release readiness is a separate Extra High 3 audit; see docs/HIGH_6_13_EXECUTION.md for measured evidence and limits.
+High 1–13 and Extra High 2 modules are implemented: shared authoritative combat, transactional lobby, Phaser exploration, synchronized story, two normal encounters, replaceable animations/VFX, mobile UI, original synth audio and 120 private production questions. Extra High3 audited and hardened the integration. Public launch remains NOT RELEASE READY until the documented human guest/mobile/balance gates are closed; see docs/EXTRA_HIGH_3_FINAL_AUDIT.md and docs/MVP_RELEASE_CHECKLIST.md.
 
 ## Local frontend
 Node22+. Copy .env.example to .env.local, configure the Supabase URL, publishable key and public hCaptcha site key, then:

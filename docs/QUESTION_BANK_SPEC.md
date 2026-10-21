@@ -12,7 +12,9 @@ Selection: server seeded RNG, 65% preferred-category/affinity pool when availabl
 Safe DTO: prompt, difficulty, four ephemeral option tokens/texts, owner/context/start/deadline, finalized performance. It excludes revision/key/explanation, other players' questions/answers, and internal history. Supabase Auth membership and service-only CAS stay authoritative. Bank cache TTL is 60 seconds; redeploy after a release to eliminate any old runtime cache.
 
 ## Private release workflow
-1. Obtain the private reviewed export via privileged backend operations. Never put it under src/public/docs or commit it.
+1. Export privately from the owner SQL editor using `select jsonb_agg(to_jsonb(q) order by q.logical_question_id) from private.questions q where status='ACTIVE' and content_version='production-v1';`. Save the JSON only in a protected local file. Never put it under src/public/docs or commit it.
 2. Run `node --import tsx scripts/validate-question-bank.ts PRIVATE_JSON --write-sql=PRIVATE_SQL`. The script prints counts only; guard the generated SQL as a private artifact.
 3. Import through service-only nz_question_import_v1 in a secure SQL/connector environment. Import transaction validates keys/metadata and minimum per-difficulty coverage, inserts immutable revisions, then retires pilot items atomically. Do not replace the options/key of an assigned revision; create a new revision.
 4. Confirm counts/review status, run private mathematical QA, test assignment safe projection/RLS and sample play. Re-run the production bundle/privacy check. Human classroom solve-time calibration remains a separate release criterion; content estimates are not measured learner timings.
+
+Extra High3 independently rechecked all120 restricted arithmetic derivations/options with scripts/audit-question-math.py and reviewed the prompts across all categories. This check does not execute content as code. Human timing and learner calibration are still NOT TESTED.

@@ -6,7 +6,7 @@ import {unavailableReason} from '@/game/combat/availability';
 import type {Character,CombatEvent} from '@/game/core/types';
 import type {CombatSnapshot,Intent} from '@/game/multiplayer/protocol';
 import {combatCommand,connectCombat} from '@/game/multiplayer/combat-client';
-import {canonicalState,EventCursor,newerSnapshot} from '@/game/multiplayer/synchronization';
+import {canonicalState,EventCursor,newerSnapshot,presentationEvents} from '@/game/multiplayer/synchronization';
 import {useGameAudio} from '../audio/AudioProvider';
 import ActorSprite from '../presentation/ActorSprite';
 import OnlineWorld from '../exploration/OnlineWorld';
@@ -23,20 +23,22 @@ export default function OnlineCombat({sessionId,roomId}:{sessionId:string;roomId
  const audio=useGameAudio(),previousUltimate=useRef<number|null>(null);const refresh=useRef<()=>Promise<void>>(async()=>{});
  const accept=useCallback((next:CombatSnapshot,rtt=0)=>{
   if(!newerSnapshot(snapshotRef.current,next))return;
-  const playback=cursor.current.consume(next);queue.current.push(...playback.events);
+  const playback=cursor.current.consume(next);queue.current=presentationEvents(queue.current,playback.events,document.hidden);
   snapshotRef.current=next;clock.current={server:next.serverNow+rtt/2,mono:performance.now()};setNow(next.serverNow+rtt/2);setSnapshot(next);setError('');
  },[]);
  useEffect(()=>{
   const sync=connectCombat(sessionId,roomId,accept,setConnection,e=>setError(e instanceof Error?e.message:'Connection unavailable'));refresh.current=sync.refresh;
   const time=setInterval(()=>setNow(clock.current.server+performance.now()-clock.current.mono),200);
   const animate=setInterval(()=>{const next=queue.current.shift();if(next){setShown(next);audio?.event(next,sessionId);}},180);
-  return()=>{sync.close();clearInterval(time);clearInterval(animate);queue.current=[];};
+  const visibility=()=>{queue.current=[];setShown(undefined);cursor.current=new EventCursor();if(!document.hidden)void sync.refresh();};
+  document.addEventListener('visibilitychange',visibility);
+  return()=>{sync.close();clearInterval(time);clearInterval(animate);queue.current=[];document.removeEventListener('visibilitychange',visibility);};
  },[sessionId,roomId,accept,audio]);
  useEffect(()=>{const value=snapshot?.party.find(p=>p.id===snapshot.myActorId)?.ultimate;if(value!==undefined){if(previousUltimate.current!==null&&previousUltimate.current<100&&value>=100)audio?.play('ultimate_ready');previousUltimate.current=value;}},[snapshot?.party,snapshot?.myActorId,audio]);
  useEffect(()=>{if(snapshot&&!snapshot.campaign?.story&&!['EXPLORATION','STORY','ENDING'].includes(snapshot.phase))audio?.music(snapshot.phase==='VICTORY'||snapshot.phase==='COMPLETED'?'victory':snapshot.phase==='DEFEAT'?'defeat':snapshot.enemyId&&snapshot.enemyId!=='abyss-guardian'?'normal-combat':'boss-combat');},[snapshot?.phase,snapshot?.enemyId,audio]);
  async function send(intent:Intent){
   if(sending.current)return;sending.current=true;setWorking(true);setError('');
-  try{const next=await combatCommand(sessionId,intent);accept(next);}
+  try{const next=await combatCommand(sessionId,intent);accept(next);if(intent.kind==='LEAVE'){sessionStorage.removeItem('nz.room.v1');window.location.assign('/');}}
   catch(e){await refresh.current();setError(e instanceof Error?e.message:'Request failed');}
   finally{sending.current=false;setWorking(false);}
  }

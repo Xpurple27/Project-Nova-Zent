@@ -1,6 +1,8 @@
 // @ts-nocheck -- Deno entrypoint is bundled and checked by Deno at deployment.
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
 import { execute, parseIntent } from '../../../src/game/multiplayer/server/service';
+import {RequestBudget,limitedBody} from '../../../src/game/multiplayer/server/http-guard';
+const requestBudget=new RequestBudget();
 const url=Deno.env.get('SUPABASE_URL')!,key=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
 const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, apikey, content-type, x-client-info','Access-Control-Allow-Methods':'POST, OPTIONS','Content-Type':'application/json','Cache-Control':'no-store'};
@@ -16,7 +18,7 @@ Deno.serve(async req=>{
  if(req.method!=='POST')return new Response(JSON.stringify({error:'METHOD_NOT_ALLOWED'}),{status:405,headers:cors});
  let sessionId;
  try{
-  const raw=await req.text();if(raw.length>8192)throw new Error('PAYLOAD_TOO_LARGE');
+  const raw=await limitedBody(req);
   const body=JSON.parse(raw);sessionId=body.sessionId;
   if(typeof sessionId!=='string'||!/^[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}$/i.test(sessionId))throw new Error('INVALID_SESSION');
   let uid=null,token=null,intent,requestId=null;
@@ -27,7 +29,7 @@ Deno.serve(async req=>{
   }else{
    const bearer=req.headers.get('Authorization')?.replace(/^Bearer /i,'');
    if(!bearer)throw new Error('UNAUTHENTICATED');
-   const {data,error}=await db.auth.getUser(bearer);if(error||!data.user)throw new Error('UNAUTHENTICATED');uid=data.user.id;
+   const {data,error}=await db.auth.getUser(bearer);if(error||!data.user)throw new Error('UNAUTHENTICATED');uid=data.user.id;if(!requestBudget.allow(uid,Date.now()))throw new Error('RATE_LIMITED');
    intent=parseIntent(body.intent);
    if(!['GET','START','PUMP'].includes(intent.kind)){
     if(typeof body.requestId!=='string'||!/^[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}$/i.test(body.requestId))throw new Error('INVALID_REQUEST_ID');requestId=body.requestId;
@@ -37,9 +39,9 @@ Deno.serve(async req=>{
   console.info(JSON.stringify({event:'combat_command',sessionId,kind:intent.kind,version:result?.version,phase:result?.phase}));
   return new Response(JSON.stringify(body.worker?{ok:true}:result),{headers:cors});
  }catch(e){
-  const known=/^(INVALID_|STALE_|DEADLINE_|NOT_|UNAUTHENTICATED|ACTION_LOCKED|ANSWER_LOCKED|INACTIVE_|ROOM_|SESSION_|QUESTION_BANK_|ENCOUNTER_|STATE_CONFLICT|IDEMPOTENCY_|RATE_LIMITED|Requires |Character is |Wrong class)/;
+  const known=/^(PAYLOAD_TOO_LARGE|INVALID_|STALE_|DEADLINE_|NOT_|UNAUTHENTICATED|ACTION_LOCKED|ANSWER_LOCKED|INACTIVE_|ROOM_|SESSION_|QUESTION_BANK_|ENCOUNTER_|STATE_CONFLICT|IDEMPOTENCY_|RATE_LIMITED|Requires |Character is |Wrong class)/;
   const message=e instanceof Error?e.message:'INTERNAL_ERROR';const safe=known.test(message)?message:'INTERNAL_ERROR';
   console.warn(JSON.stringify({event:'combat_rejected',sessionId,code:safe}));
-  return new Response(JSON.stringify({error:safe}),{status:safe==='UNAUTHENTICATED'?401:safe==='INTERNAL_ERROR'?500:409,headers:cors});
+  return new Response(JSON.stringify({error:safe}),{status:safe==='UNAUTHENTICATED'?401:safe==='RATE_LIMITED'?429:safe==='PAYLOAD_TOO_LARGE'?413:safe==='INTERNAL_ERROR'?500:409,headers:cors});
  }
 });
