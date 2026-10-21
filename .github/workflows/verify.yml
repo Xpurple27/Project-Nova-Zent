@@ -13,6 +13,10 @@ jobs:
     env:
       NOVA_ENABLE_OFFLINE_DEMO: "1"
       NEXT_TELEMETRY_DISABLED: "1"
+      # Public configuration for the isolated browser tests; Auth is mocked there.
+      NEXT_PUBLIC_SUPABASE_URL: "https://bbeymvooubwsbrkeukuu.supabase.co"
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_Y2cVkp1j_Oo55oiTu4rO6w_ge3yPJW6"
+      NEXT_PUBLIC_HCAPTCHA_SITE_KEY: "69c6ee50-ea78-49ba-81cc-781a89ec15be"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

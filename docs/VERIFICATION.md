@@ -8,7 +8,7 @@ Date:21 October2026, UTC. Evidence distinguishes live Supabase traffic from loca
 - Simulations1P/2P/4P reached Victory in13/10/8 rounds respectively with the shared engine. A4P CLI run with disconnect and forced Heavy reached Victory in10 rounds. These are simulations, not physical-device tests.
 
 ## Full live four-browser battle
-Four isolated Chromium contexts authenticated to the real Supabase project through the production frontend build. Auth used four temporary confirmed QA identities because Anonymous Sign-Ins is disabled. No Auth configuration was changed.
+Four isolated Chromium contexts authenticated to the real Supabase project through the production frontend build. Auth used four temporary confirmed QA identities because Anonymous Sign-Ins was disabled during that battle. No Auth configuration was changed.
 Room GU6URK4, session ded58afa-2adf-4cc5-89d7-b5923b21d18d:
 - Victory on round9, boss0/5600HP, final state_version139 before teardown.
 - Database recorded214 events and182.546443s from start to finish.
@@ -41,7 +41,7 @@ Destructive cleanup/extension operations returned expired connector request stat
 A CLI invocation was rejected by automatic review for unidentified PostHog telemetry. Subsequent SQL work used the Supabase connector; the rejected CLI action was not retried.
 
 ## Remaining release gates/advisories
-- High: Anonymous Sign-Ins remains disabled, so new public guests cannot enter until the owner enables the provider. Existing authenticated sessions were fully tested. No Vercel production frontend deployment is claimed.
+- Public guest release: Anonymous Sign-Ins is now enabled (read-only Auth settings confirmed). hCaptcha frontend integration is implemented; the owner configured the provider secret in Supabase. A deployed frontend with its public site key and one successful human CAPTCHA verification is still required to close the live guest UAT gate. No Vercel production frontend deployment is claimed.
 - Medium: pilot questions need curriculum/content review; broad public-release IP/rejected-request throttling and physical-device/network diversity remain follow-ups.
 - Medium: advisor reports pg_net extension metadata in public; its functions live in net and combat backend RPCs remain service-only. Relocation requires a separate approved maintenance step.
 - Low: Auth leaked-password protection is disabled; MVP guest play has no password flow. Final art/audio remain placeholders.
@@ -53,3 +53,11 @@ Implementation commit: cf38f22495764f6ef7ee27eff8116400271e59b8. Its final produ
 
 The pilot question/answer seed is readable in this public repository. RLS/API payloads hide assignment answer tokens, but this pilot content should be replaced by a private production import before launch.
 Advisory references: [pg_net namespace](https://supabase.com/docs/guides/database/database-linter?lint=0014_extension_in_public), [password protection](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection). The performance advisor reported only11 INFO unused-index findings; refer to [index review](https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index).
+
+## hCaptcha guest integration — 21 October 2026
+- Official `@hcaptcha/react-hcaptcha` 2.2.0, compact dark widget, public site key from build environment. No database/Edge changes.
+- Restore-only page load; new guests explicitly submit after verification. Supabase SDK sends `options.captchaToken`; the UI consumes tokens once and resets the widget after success/failure. Expiry/challenge timeout/script errors invalidate tokens and offer retry. In-flight guards prevent duplicate signup; existing sessions bypass CAPTCHA on refresh.
+- Read-only live `/auth/v1/settings` returned `external.anonymous_users=true`. CAPTCHA configuration is not exposed by that endpoint; the secret configuration is owner-reported.
+- Lint/typecheck, all 46 engine tests, Edge drift check and production build passed. Browser tests use isolated hCaptcha/API doubles; no real CAPTCHA is solved, no QA Auth users are created, and production contains no test bypass. Human challenge acceptance on the deployed hostname is not claimed.
+- Initial browser execution could not launch because the runner's Chromium cache was absent. Restored the browser via Playwright's official download fallback; this was an environment issue.
+- Final browser rerun: all 5 passed (2 baseline + 3 guest/CAPTCHA cases), including 320px layout, duplicate-click suppression, outgoing token payload, session restore, expiry/widget errors, Auth rejection and fresh-token retry. Test response headers were corrected to match Supabase API-version/CORS behavior; error messaging also handles legacy CAPTCHA rejection messages.

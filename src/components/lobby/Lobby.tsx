@@ -1,10 +1,11 @@
 
 "use client";
 import { useCallback,useEffect,useState } from "react";
+import GuestVerification from "./GuestVerification";
 import OnlineCombat from "../combat/OnlineCombat";
 import { CHARACTERS, GAME } from "@/game/config";
 import { CLASSES, type RoomState } from "@/game/core/types";
-import { browserSupabase,ensureGuest } from "@/lib/supabase/browser";
+import { browserSupabase,restoreGuest } from "@/lib/supabase/browser";
 import { lobbyCommand,lobbyError,normalizeRoomCode,validRoomCode,type LobbyCommand } from "@/game/multiplayer/client";
 export default function Lobby(){
  const [uid,setUid]=useState(""),[room,setRoom]=useState<RoomState|null>(null);
@@ -14,8 +15,10 @@ export default function Lobby(){
  const apply=useCallback((next:RoomState)=>setRoom(old=>!old||old.id!==next.id||BigInt(next.version)>=BigInt(old.version)?next:old),[]);
  useEffect(()=>{
   let mounted=true;
-  ensureGuest().then(async id=>{
-   if(!mounted)return;setUid(id);setConnection("Online");
+  restoreGuest().then(async id=>{
+   if(!mounted)return;
+   if(!id){setConnection("Verification required");return;}
+   setUid(id);setConnection("Online");
    const saved=sessionStorage.getItem("nz.room.v1");
    if(saved){try{const r=await lobbyCommand("HEARTBEAT",{roomId:saved});if(mounted)apply(r);}catch(e){if(mounted){setError(lobbyError(e));sessionStorage.removeItem("nz.room.v1");}}}
   }).catch(e=>{if(mounted){setError(lobbyError(e));setConnection("Unavailable");}});
@@ -52,6 +55,7 @@ export default function Lobby(){
  if(started&&room)return <OnlineCombat key={room.sessionId} sessionId={room.sessionId} roomId={room.id}/>;
  return <div className="lobby-page"><div className="page-heading"><div><p className="eyebrow">GATHER YOUR PARTY</p><h1>Expedition lobby<span className="accent">.</span></h1><p>Empat class unik. Satu party. Bangun kekuatan bersama.</p></div><span className="connection"><span className="status-dot"/>{connection}</span></div>
  {error&&<div role="alert" className="notice error">{error}</div>}
+ {!uid&&connection==="Verification required"&&<GuestVerification onAuthenticated={id=>{setUid(id);setConnection("Online");setError("");}}/>}
  {!room?<div className="entry-grid"><section className="panel"><p className="eyebrow">YOUR IDENTITY</p><h2>The adventurer behind the formula</h2><label htmlFor="nickname">Display name</label><input id="nickname" maxLength={20} minLength={2} value={nickname} onChange={e=>setNickname(e.target.value)} autoComplete="nickname"/><p className="muted">Identitas tersimpan pada tab ini. Refresh tab untuk reconnect. Tab baru yang dibuka terpisah dapat menjadi pemain berbeda.</p><button className="button primary" disabled={!uid||working||nickname.trim().length<2} onClick={()=>void send("CREATE",{nickname:nickname.trim()})}>Create expedition <span>+</span></button></section><section className="panel join-panel"><p className="eyebrow">AN INVITATION AWAITS</p><h2>Join a party</h2><label htmlFor="room-code">7-character room code</label><input id="room-code" className="code-input" maxLength={7} placeholder="X7K4P2Q" value={code} onChange={e=>setCode(normalizeRoomCode(e.target.value))} autoCapitalize="characters" autoComplete="off"/><button className="button secondary" disabled={!uid||working||!validRoomCode(code)||nickname.trim().length<2} onClick={()=>void send("JOIN",{code,nickname:nickname.trim()})}>Join expedition <span>↗</span></button><p className="muted">Room yang sudah dimulai hanya menerima reconnect anggota yang sama.</p></section></div>:
  <><section className="room-strip panel"><div><p className="eyebrow">EXPEDITION CODE</p><strong className="room-code">{room.code}</strong></div><button className="button small secondary" onClick={()=>{void navigator.clipboard.writeText(room.code).catch(()=>setError("Salin kode room yang terlihat di layar."));}}>Copy code</button><span className="muted">{room.players.length}/4 adventurers · {room.state.replaceAll("_"," ")}</span>{!started&&<button className="text-button" disabled={working} onClick={()=>void send("LEAVE")}>Leave room</button>}</section>
  <div className="party-grid">{Array.from({length:4},(_,seat)=>{const p=room.players.find(p=>p.seat===seat);return <article className={"panel player-slot "+(p?.userId===uid?"local-slot":"")} key={seat}>{p?<><div className="slot-top"><span className="eyebrow">SLOT {seat+1}{p.userId===uid?" · YOU":""}</span><span className={p.status==="INACTIVE"?"muted":"teal"}>{p.status==="INACTIVE"?"Inactive":online.includes(p.userId)||p.userId===uid?"● Online":"◌ Reconnecting"}</span></div><div className="slot-emblem" style={{color:p.classId?CHARACTERS[p.classId].color:undefined}}>{p.classId?CHARACTERS[p.classId].symbol:"?"}</div><h3>{p.nickname}</h3><p>{p.classId?CHARACTERS[p.classId].name:"Choosing a path…"}</p><div className="slot-footer"><span className={p.ready?"ready-badge":"muted"}>{p.ready?"✓ READY":"Not ready"}</span>{p.id===room.coordinatorId&&<span className="muted">Coordinator</span>}</div>{coordinator&&p.status==="INACTIVE"&&!started&&<button className="text-button" disabled={working} onClick={()=>void send("REMOVE_INACTIVE",{playerId:p.id})}>Release inactive slot</button>}</>:<><p className="eyebrow">SLOT {seat+1}</p><div className="slot-emblem muted">+</div><h3 className="muted">Awaiting adventurer</h3><p className="muted">Share your room code.</p></>}</article>;})}</div>

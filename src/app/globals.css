@@ -7,3 +7,5 @@
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 
 .floating-number{position:absolute;z-index:3;left:48%;top:25%;font-size:38px;font-weight:800;color:#efc0ff;text-shadow:0 2px 12px #08070f;pointer-events:none;animation:number-rise .7s ease-out}.floating-number small{display:block;font-size:8px;letter-spacing:.12em;text-align:center}.floating-number.heal,.floating-number.blocked{color:var(--teal)}.floating-number.shield_damage{color:#a7c4ff}.floating-number.incoming_damage{left:28%;color:#ffc3b3}@keyframes number-rise{from{transform:translateY(10px);opacity:0}to{transform:translateY(-12px);opacity:1}}
+
+.guest-verification{display:flex;flex-direction:column;align-items:flex-start;gap:16px;margin-bottom:24px;overflow-wrap:anywhere}.guest-verification .eyebrow{margin:0}.guest-verification p{font-size:13px}.guest-verification .button{max-width:100%}

@@ -22,6 +22,7 @@ export async function lobbyCommand(command:LobbyCommand,payload:Record<string,un
 export function lobbyError(error:unknown):string{
  const message=error instanceof Error?error.message:String(error);
  const known:Record<string,string>={
+  CAPTCHA_REQUIRED:"Selesaikan verifikasi hCaptcha sebelum masuk sebagai guest.",
   SUPABASE_NOT_CONFIGURED:"Isi environment Supabase sesuai .env.example.",
   ROOM_NOT_FOUND:"Kode room tidak ditemukan.",ROOM_FULL:"Room sudah berisi empat pemain.",
   ROOM_EXPIRED:"Room sudah kedaluwarsa.",CLASS_TAKEN:"Class itu baru saja dipilih pemain lain.",
@@ -31,6 +32,7 @@ export function lobbyError(error:unknown):string{
   RUN_ALREADY_STARTED:"Room sudah dimulai. Pemain baru tidak dapat bergabung.",
   NOT_A_MEMBER:"Identitas ini bukan anggota room.",RATE_LIMITED:"Terlalu banyak permintaan. Tunggu sebentar."
  };
+ if((typeof error==="object"&&error!==null&&"code" in error&&error.code==="captcha_failed")||/^captcha (?:verification|validation) failed/i.test(message))return "Verifikasi hCaptcha ditolak atau kedaluwarsa. Silakan verifikasi ulang.";
  if(/anonymous.*disabled/i.test(message))return "Anonymous Sign-Ins belum aktif di Supabase. Aktifkan pada Authentication → Sign In / Providers → Anonymous.";
  return known[message]??message;
 }

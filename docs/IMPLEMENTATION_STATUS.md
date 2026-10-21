@@ -8,6 +8,6 @@ Offline QA and its debug panel remain available. The CLI simulation supports1–
 
 Supabase migrations and nova-combat Edge bundle are deployed. The frontend source is in this repository; no Vercel production deployment is claimed. The pilot question bank has20 questions per difficulty and still requires educational review.
 
-The full four-browser UAT reached one shared Victory in9 rounds. See VERIFICATION.md for evidence, exact gates, security advisories and remaining environment prerequisites. New guest login still depends on the project's Anonymous Sign-Ins setting; four temporary confirmed QA identities were used without changing Auth configuration.
+The full four-browser UAT reached one shared Victory in9 rounds. See VERIFICATION.md for evidence, exact gates, security advisories and remaining environment prerequisites. Anonymous Sign-Ins has since been enabled by the owner and confirmed through Auth settings. The lobby now integrates hCaptcha for new guests; existing sessions restore without another challenge. The four-browser combat UAT used temporary confirmed QA identities before this Auth update. Live human CAPTCHA verification on the deployed hostname remains pending.
 
 Supplied art documents have been read and normalized to NOVA ZENITH. Production sprite exports/audio, exploration, cinematics, progression and other excluded features are not implemented.
