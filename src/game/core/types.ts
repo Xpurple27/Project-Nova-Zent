@@ -1,3 +1,4 @@
+import type {EnemyId} from '../enemies/definitions';
 
 export const CLASSES = ["WARRIOR", "MAGE", "THIEF", "HEALER"] as const;
 export type CharacterClass = typeof CLASSES[number];
@@ -9,7 +10,7 @@ export type Character = CharacterStats & {
   resource: number; ultimate: number; seat: number; active?: boolean;
 };
 export type QuestionDifficulty = "EASY" | "MEDIUM" | "HARD";
-export type QuestionCategory = "ARITHMETIC" | "ALGEBRA" | "RATIO" | "PATTERN" | "PROBABILITY" | "PERCENTAGE";
+export type QuestionCategory = "ARITHMETIC" | "NUMBER_SENSE" | "FRACTIONS" | "ALGEBRA" | "LINEAR_EQUATIONS" | "FORMULA" | "RATIO" | "PATTERN" | "SEQUENCES" | "LOGIC" | "PROBABILITY" | "PERCENTAGE" | "GEOMETRY" | "MEASUREMENT";
 export type MathPerformance = "PERFECT" | "SUCCESS" | "FAILED";
 export type MathQuestion = { id: string; difficulty: QuestionDifficulty; category: QuestionCategory; prompt: string; options: string[] };
 // Answers exist only in development fixtures, never in the shared online question DTO.
@@ -31,9 +32,9 @@ export type Buff = StatusEffect & { negative: false };
 export type Debuff = StatusEffect & { negative: true };
 export type CombatAction = { actorId: string; skillId: string; targetId: string; performance: MathPerformance; origin?: "MANUAL" | "AUTO"; reviveTargetId?: string };
 export type ResolvedAction = CombatAction & { damage: number; healing: number; canceled?: boolean };
-export type CombatEvent = { seq: number; turn: number; type: string; actorId?: string; targetId?: string; amount?: number; text: string };
+export type CombatEvent = { skillId?:string; encounterId?:string; seq: number; turn: number; type: string; actorId?: string; targetId?: string; amount?: number; text: string };
 export type BossPhase = 1 | 2 | 3;
-export type BossSkill = "CLAW" | "SPEAR" | "WAVE" | "ROAR" | "ARMOR" | "BARRIER" | "CHARGE" | "CATACLYSM";
+export type BossSkill = "BITE"|"POUNCE"|"SHADOW_BOLT"|"CORRUPT_WAVE"|"DARK_CHANT"|"CLAW" | "SPEAR" | "WAVE" | "ROAR" | "ARMOR" | "BARRIER" | "CHARGE" | "CATACLYSM";
 export type BossAction = { skill: BossSkill; targetId?: string };
 export type ThreatEntry = { actorId: string; weight: number };
 export type BossState = {
@@ -44,6 +45,7 @@ export type BossState = {
 };
 export type PendingInput = { kind: "REACTION"; intent: BossAction; actorId: string } | { kind: "RUNE"; actorIds: string[]; required: number };
 export type CombatState = {
+  enemyId?:EnemyId;
   mode: "OFFLINE_QA" | "SERVER"; turn: number; phase: CombatPhase; party: Character[];
   boss: BossState; partySize: number; resonance: number; seed: number;
   effects: StatusEffect[]; events: CombatEvent[]; nextSeq: number; effectSeq: number;

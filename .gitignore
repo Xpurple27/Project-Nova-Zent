@@ -30,3 +30,5 @@ Thumbs.db
 .uat-*.png
 test-results/
 playwright-report/
+
+.qa/

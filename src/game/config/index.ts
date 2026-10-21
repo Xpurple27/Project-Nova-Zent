@@ -10,10 +10,10 @@ export const GAME = {
   combo: [0,0,.05,.10,.15], blessingTimeMs: 3000
 } as const;
 export const CHARACTERS: Record<CharacterClass, CharacterStats & { name: string; resourceType: ResourceType; basic: string; color: string; symbol: string }> = {
-  WARRIOR: { name: "Warrior", maxHp:650,speed:55,resistance:.20,resourceType:"GUARD",basic:"warrior.slash",color:"#edb66b",symbol:"◆" },
+  WARRIOR: { name: "Warrior", maxHp:650,speed:55,resistance:.20,resourceType:"GUARD",basic:"warrior.slash",color:"#9cc1dc",symbol:"◆" },
   MAGE: { name: "Mage", maxHp:400,speed:70,resistance:0,resourceType:"MANA",basic:"mage.arcane_bolt",color:"#af9aff",symbol:"✦" },
   THIEF: { name: "Thief", maxHp:450,speed:100,resistance:.05,resourceType:"FOCUS",basic:"thief.quick_strike",color:"#65dac0",symbol:"❖" },
-  HEALER: { name: "Healer", maxHp:500,speed:60,resistance:.10,resourceType:"FAITH",basic:"healer.holy_bolt",color:"#99d8f3",symbol:"✧" }
+  HEALER: { name: "Healer", maxHp:500,speed:60,resistance:.10,resourceType:"FAITH",basic:"healer.holy_bolt",color:"#e5d49c",symbol:"✧" }
 };
 function skill(classId:CharacterClass,id:string,name:string,type:SkillDefinition["type"],target:SkillDefinition["target"],cost:number,base:number,difficulty:SkillDefinition["difficulty"],category:number,priority:number,description:string,ultimate=false):SkillDefinition {
   return { classId,id,name,type,target,cost,base,difficulty,category,priority,description,ultimate };

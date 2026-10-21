@@ -5,10 +5,10 @@ const url=Deno.env.get('SUPABASE_URL')!,key=Deno.env.get('SUPABASE_SERVICE_ROLE_
 const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
 const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, apikey, content-type, x-client-info','Access-Control-Allow-Methods':'POST, OPTIONS','Content-Type':'application/json','Cache-Control':'no-store'};
 async function rpc(name,args={}){const {data,error}=await db.rpc(name,args);if(error)throw new Error(error.message);return data;}
-let bankCache;
+let bankCache,bankCachedAt=0;
 const persistence={
  load:(sessionId,uid,token,requestId,intent)=>rpc('nz_combat_load_v1',{p_session:sessionId,p_uid:uid,p_token:token,p_request:requestId,p_payload:intent}),
- bank:async()=>{if(!bankCache){bankCache=rpc('nz_combat_bank_v1');bankCache.catch(()=>{bankCache=null;});}return await bankCache;},
+ bank:async()=>{if(!bankCache||Date.now()-bankCachedAt>60000){bankCachedAt=Date.now();bankCache=rpc('nz_combat_bank_v1');bankCache.catch(()=>{bankCache=null;});}return await bankCache;},
  commit:c=>rpc('nz_combat_commit_v1',{p_session:c.sessionId,p_expected:c.expected,p_document:c.document,p_public:c.projection,p_due:c.due,p_uid:c.uid,p_request:c.requestId,p_payload:c.payload,p_result:c.result,p_cutoff:c.cutoff})
 };
 Deno.serve(async req=>{

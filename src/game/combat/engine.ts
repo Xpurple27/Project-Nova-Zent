@@ -1,3 +1,4 @@
+import {normalAction,normalEnemy} from '../enemies/definitions';
 
 /** Pure deterministic domain engine. I/O, authentication and deadlines belong to the server adapter. */
 import { BOSS, CHARACTERS, GAME, SKILL_BY_ID } from "../config";
@@ -61,7 +62,7 @@ function execute(s:CombatState,a:CombatAction):ResolvedAction {
  const p=s.party.find(x=>x.id===a.actorId)!,k=SKILL_BY_ID[a.skillId];const r=s.turn;
  if(s.boss.hp<=0||p.hp<=0||p.active===false)return {...a,damage:0,healing:0,canceled:true};
  if(k.ultimate)p.ultimate=0;else p.resource=clampResource(p.resource-k.cost);
- event(s,"ACTION_RESOLVED",p.name+" — "+k.name+" — "+a.performance,undefined,p.id);
+ event(s,"ACTION_RESOLVED",p.name+" — "+k.name+" — "+a.performance,undefined,p.id,undefined,k.id);
  let damage=0,healing=0;
  if(k.base>0&&k.type!=="HEAL")damage=hit(s,a,p,k);
  const add=(type:Parameters<typeof putEffect>[1],target:string,n:number,through=r,from=r)=>putEffect(s,type,p.id,target,n,through,from);
@@ -89,7 +90,7 @@ function execute(s:CombatState,a:CombatAction):ResolvedAction {
 }
 export function finishRound(s:CombatState):void {
  s.pending=null;expireEffects(s);
- if(s.boss.hp<=0){s.phase="VICTORY";s.boss.core=null;event(s,"BOSS_DEFEATED","VICTORY — the seal holds, for now.");event(s,"VICTORY","The party defeated Abyss Guardian.");return;}
+ if(s.boss.hp<=0){s.phase="VICTORY";s.boss.core=null;event(s,normalEnemy(s)?"ENEMY_DEFEATED":"BOSS_DEFEATED","VICTORY — "+s.boss.name+" defeated.");event(s,"VICTORY","The party defeated "+s.boss.name+".");return;}
  if(isPartyWiped(s)){s.phase="DEFEAT";event(s,"PARTY_DEFEATED","DEFEAT — regroup and try another formula.");event(s,"DEFEAT","The expedition has fallen.");return;}
  s.turn++;s.phase="COMBAT_PLANNING";
 }
@@ -107,14 +108,14 @@ export function resolvePlayerActions(input:CombatState,requested:CombatAction[])
  if(s.roundSuccess&&actions.length===4)for(const p of living)gainUltimate(s,p,5);
  if(s.boss.hp<=0){finishRound(s);return s;}
  if(s.dummy){finishRound(s);return s;}
- if(s.boss.heavy==="NONE"||s.boss.heavy==="PENDING_CHARGE"){
+ if(!normalEnemy(s)&&(s.boss.heavy==="NONE"||s.boss.heavy==="PENDING_CHARGE")){
    s.rageBonus=Math.min(10,s.rageBonus+(s.roundSuccess?3:0)+(s.roundBossHpStart-s.boss.hp>=s.boss.maxHp*.1?3:0));
    s.boss.rage=Math.min(100,s.boss.rage+s.rageBonus);
  }
  s.phase="BOSS_ACTION";return s;
 }
 export function decideBoss(s:CombatState,rng?:()=>number){
- const intent=selectBossAction(s,rng);event(s,"BOSS_ACTION_SELECTED","Abyss Guardian — "+intent.skill,undefined,"boss",intent.targetId);return intent;
+ const intent=selectBossAction(s,rng);event(s,"BOSS_ACTION_SELECTED",s.boss.name+" — "+intent.skill,undefined,"boss",intent.targetId,"boss."+intent.skill);return intent;
 }
 export function resolveRound(input:CombatState,requested:CombatAction[],rng?:()=>number):CombatState {
  const s=resolvePlayerActions(input,requested);
@@ -126,7 +127,7 @@ export function resolveReaction(input:CombatState,performance:MathPerformance,fi
  const s=structuredClone(input),pending=s.pending!;
  if(pending.kind!=="REACTION")throw new Error("INVALID_PENDING");
  const p=s.party.find(x=>x.id===pending.actorId)!;
- const base=pending.intent.skill==="SPEAR"?BOSS.spear:BOSS.claw;
+ const base=normalAction(s,pending.intent.skill)?.damage??(pending.intent.skill==="SPEAR"?BOSS.spear:BOSS.claw);
  const beforeReaction=incomingDamage(s,p,base);
  const damage=incomingDamage(s,p,base,performance);
  if(beforeReaction>damage)event(s,"BLOCKED",damage===0?"DODGED — no incoming damage":"BLOCKED "+(beforeReaction-damage),beforeReaction-damage,p.id,p.id);

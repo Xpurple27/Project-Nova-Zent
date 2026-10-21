@@ -1,6 +1,16 @@
 // supabase/functions/nova-combat/entry.ts
 import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 
+// src/game/enemies/definitions.ts
+var ENEMIES = {
+  "shadow-hound": { id: "shadow-hound", name: "Shadow Hound", baseHp: 400, cycle: ["BITE", "POUNCE"], actions: [{ id: "BITE", name: "Bite", kind: "SINGLE", damage: 60, reaction: true }, { id: "POUNCE", name: "Pounce", kind: "SINGLE", damage: 80, reaction: true }] },
+  "corrupted-shaman": { id: "corrupted-shaman", name: "Corrupted Shaman", baseHp: 600, cycle: ["CORRUPT_WAVE", "DARK_CHANT", "SHADOW_BOLT"], actions: [{ id: "SHADOW_BOLT", name: "Shadow Bolt", kind: "SINGLE", damage: 70, reaction: true }, { id: "CORRUPT_WAVE", name: "Corrupt Wave", kind: "AOE", damage: 30, reaction: false }, { id: "DARK_CHANT", name: "Dark Chant", kind: "UTILITY", damage: 0, reaction: false }] }
+};
+function normalEnemy(s) {
+  return s.enemyId && s.enemyId !== "abyss-guardian" ? ENEMIES[s.enemyId] : null;
+}
+var normalAction = (s, skill2) => normalEnemy(s)?.actions.find((a) => a.id === skill2);
+
 // src/game/config/index.ts
 var GAME = {
   name: "NOVA ZENITH",
@@ -24,10 +34,10 @@ var GAME = {
   blessingTimeMs: 3e3
 };
 var CHARACTERS = {
-  WARRIOR: { name: "Warrior", maxHp: 650, speed: 55, resistance: 0.2, resourceType: "GUARD", basic: "warrior.slash", color: "#edb66b", symbol: "\u25C6" },
+  WARRIOR: { name: "Warrior", maxHp: 650, speed: 55, resistance: 0.2, resourceType: "GUARD", basic: "warrior.slash", color: "#9cc1dc", symbol: "\u25C6" },
   MAGE: { name: "Mage", maxHp: 400, speed: 70, resistance: 0, resourceType: "MANA", basic: "mage.arcane_bolt", color: "#af9aff", symbol: "\u2726" },
   THIEF: { name: "Thief", maxHp: 450, speed: 100, resistance: 0.05, resourceType: "FOCUS", basic: "thief.quick_strike", color: "#65dac0", symbol: "\u2756" },
-  HEALER: { name: "Healer", maxHp: 500, speed: 60, resistance: 0.1, resourceType: "FAITH", basic: "healer.holy_bolt", color: "#99d8f3", symbol: "\u2727" }
+  HEALER: { name: "Healer", maxHp: 500, speed: 60, resistance: 0.1, resourceType: "FAITH", basic: "healer.holy_bolt", color: "#e5d49c", symbol: "\u2727" }
 };
 function skill(classId, id, name, type, target, cost, base, difficulty, category, priority, description, ultimate = false) {
   return { classId, id, name, type, target, cost, base, difficulty, category, priority, description, ultimate };
@@ -152,14 +162,15 @@ function createBoss(n) {
   const maxHp = bossHp(n);
   return { id: "boss", name: "Abyss Guardian", hp: maxHp, maxHp, phase: 1, rage: 0, shield: 0, cycle: 0, lastSpearRound: -100, lastUtility: null, barrierUsed: false, heavy: "NONE", core: null, normalSinceHeavy: 2 };
 }
-function event(s, type, text, amount, actorId, targetId) {
-  s.events.push({ seq: s.nextSeq++, turn: s.turn, type, text, amount, actorId, targetId });
+function event(s, type, text, amount, actorId, targetId, skillId) {
+  s.events.push({ seq: s.nextSeq++, turn: s.turn, type, text, amount, actorId, targetId, ...skillId ? { skillId } : {}, ...s.enemyId ? { encounterId: s.enemyId } : {} });
 }
 function random(s) {
   s.seed = Math.imul(s.seed, 1664525) + 1013904223 >>> 0;
   return s.seed / 4294967296;
 }
 function updatePhase(s) {
+  if (normalEnemy(s)) return;
   const ratio = s.boss.hp / s.boss.maxHp;
   const next = ratio < 0.25 ? 3 : ratio < 0.6 ? 2 : 1;
   while (s.boss.phase < next) {
@@ -188,7 +199,11 @@ function utility(s) {
   return !roar ? "ROAR" : !armor ? "ARMOR" : "CLAW";
 }
 function selectBossAction(s, rng = () => random(s)) {
-  const b = s.boss;
+  const b = s.boss, enemy = normalEnemy(s);
+  if (enemy) {
+    const skill3 = enemy.cycle[b.cycle % enemy.cycle.length], action = normalAction(s, skill3);
+    return action.kind === "SINGLE" ? { skill: skill3, targetId: selectTarget(s, rng) } : { skill: skill3 };
+  }
   if (b.heavy === "CORE_EXPOSED") return { skill: "CATACLYSM" };
   if (b.rage >= 100 && b.normalSinceHeavy >= BOSS.normalHeavyLockout) return { skill: "CHARGE" };
   const slot = b.cycle % 5;
@@ -222,6 +237,10 @@ function gainUltimate(s, p, amount) {
   s.gainThisRound[p.id] = already + Math.max(0, add);
 }
 function settleBoss(s, intent) {
+  if (normalEnemy(s)) {
+    s.boss.cycle++;
+    return;
+  }
   const normal = intent.skill !== "CHARGE" && intent.skill !== "CATACLYSM";
   if (normal) {
     s.boss.cycle++;
@@ -232,7 +251,25 @@ function settleBoss(s, intent) {
   event(s, "RAGE_CHANGED", "Rage " + s.boss.rage, s.boss.rage);
 }
 function applyBossIntent(s, intent) {
-  const b = s.boss;
+  const b = s.boss, action = normalAction(s, intent.skill);
+  if (action) {
+    if (action.reaction) {
+      s.pending = { kind: "REACTION", intent, actorId: intent.targetId };
+      s.phase = "DEFENSIVE_REACTION";
+      return;
+    }
+    if (action.kind === "AOE") {
+      for (const p of s.party.filter((p2) => p2.hp > 0 && p2.active !== false)) hurt(s, p, incomingDamage(s, p, action.damage));
+      consume(s, "FROST", "boss");
+    }
+    if (action.id === "DARK_CHANT") {
+      putEffect(s, "ARMOR", "boss", "boss", 0.15, s.turn + 2, s.turn + 1);
+      for (const p of s.party.filter((p2) => p2.hp > 0 && p2.active !== false)) putEffect(s, "ROAR", "boss", p.id, 0.1, s.turn + 2, s.turn + 1, true, true);
+      event(s, "EFFECT_APPLIED", "Dark Chant \u2014 armor +15%, party effectiveness \u221210%");
+    }
+    settleBoss(s, intent);
+    return;
+  }
   if (intent.skill === "CLAW" || intent.skill === "SPEAR") {
     if (intent.skill === "SPEAR") b.lastSpearRound = s.turn;
     s.pending = { kind: "REACTION", intent, actorId: intent.targetId };
@@ -370,7 +407,7 @@ function execute(s, a) {
   if (s.boss.hp <= 0 || p.hp <= 0 || p.active === false) return { ...a, damage: 0, healing: 0, canceled: true };
   if (k.ultimate) p.ultimate = 0;
   else p.resource = clampResource(p.resource - k.cost);
-  event(s, "ACTION_RESOLVED", p.name + " \u2014 " + k.name + " \u2014 " + a.performance, void 0, p.id);
+  event(s, "ACTION_RESOLVED", p.name + " \u2014 " + k.name + " \u2014 " + a.performance, void 0, p.id, void 0, k.id);
   let damage = 0, healing = 0;
   if (k.base > 0 && k.type !== "HEAL") damage = hit(s, a, p, k);
   const add = (type, target, n, through = r, from = r) => putEffect(s, type, p.id, target, n, through, from);
@@ -425,8 +462,8 @@ function finishRound(s) {
   if (s.boss.hp <= 0) {
     s.phase = "VICTORY";
     s.boss.core = null;
-    event(s, "BOSS_DEFEATED", "VICTORY \u2014 the seal holds, for now.");
-    event(s, "VICTORY", "The party defeated Abyss Guardian.");
+    event(s, normalEnemy(s) ? "ENEMY_DEFEATED" : "BOSS_DEFEATED", "VICTORY \u2014 " + s.boss.name + " defeated.");
+    event(s, "VICTORY", "The party defeated " + s.boss.name + ".");
     return;
   }
   if (isPartyWiped(s)) {
@@ -461,7 +498,7 @@ function resolvePlayerActions(input, requested) {
     finishRound(s);
     return s;
   }
-  if (s.boss.heavy === "NONE" || s.boss.heavy === "PENDING_CHARGE") {
+  if (!normalEnemy(s) && (s.boss.heavy === "NONE" || s.boss.heavy === "PENDING_CHARGE")) {
     s.rageBonus = Math.min(10, s.rageBonus + (s.roundSuccess ? 3 : 0) + (s.roundBossHpStart - s.boss.hp >= s.boss.maxHp * 0.1 ? 3 : 0));
     s.boss.rage = Math.min(100, s.boss.rage + s.rageBonus);
   }
@@ -470,7 +507,7 @@ function resolvePlayerActions(input, requested) {
 }
 function decideBoss(s, rng) {
   const intent = selectBossAction(s, rng);
-  event(s, "BOSS_ACTION_SELECTED", "Abyss Guardian \u2014 " + intent.skill, void 0, "boss", intent.targetId);
+  event(s, "BOSS_ACTION_SELECTED", s.boss.name + " \u2014 " + intent.skill, void 0, "boss", intent.targetId, "boss." + intent.skill);
   return intent;
 }
 function resolveReaction(input, performance, finish = true) {
@@ -478,7 +515,7 @@ function resolveReaction(input, performance, finish = true) {
   const s = structuredClone(input), pending = s.pending;
   if (pending.kind !== "REACTION") throw new Error("INVALID_PENDING");
   const p = s.party.find((x) => x.id === pending.actorId);
-  const base = pending.intent.skill === "SPEAR" ? BOSS.spear : BOSS.claw;
+  const base = normalAction(s, pending.intent.skill)?.damage ?? (pending.intent.skill === "SPEAR" ? BOSS.spear : BOSS.claw);
   const beforeReaction = incomingDamage(s, p, base);
   const damage = incomingDamage(s, p, base, performance);
   if (beforeReaction > damage) event(s, "BLOCKED", damage === 0 ? "DODGED \u2014 no incoming damage" : "BLOCKED " + (beforeReaction - damage), beforeReaction - damage, p.id, p.id);
@@ -515,6 +552,199 @@ function resolveRune(input, results, finish = true) {
   return s;
 }
 
+// src/game/combat/encounters.ts
+function createEncounter(classes, enemyId, seed) {
+  const s = createCombat(classes, seed);
+  s.enemyId = enemyId;
+  if (enemyId !== "abyss-guardian") {
+    const def = ENEMIES[enemyId];
+    s.boss.name = def.name;
+    s.boss.hp = s.boss.maxHp = Math.round(def.baseHp * (1 + 0.6 * (classes.length - 1)));
+    s.roundBossHpStart = s.boss.hp;
+  }
+  return s;
+}
+
+// src/game/story/definitions.ts
+var dialogue = (id, atMs, speaker, text, durationMs = 6e3) => ({ id, atMs, type: "showDialogue", speaker, portrait: speaker.toLowerCase(), text, durationMs });
+var STORIES = {
+  opening: { id: "opening", version: 1, scene: "VILLAGE", durationMs: 48e3, steps: [
+    { id: "lock", atMs: 0, type: "lockControls" },
+    { id: "music", atMs: 0, type: "changeMusic", cue: "village" },
+    { id: "pan", atMs: 0, type: "cameraPan", x: 560, y: 380, durationMs: 2500 },
+    dialogue("seals", 1e3, "Penjaga Segel", "Delapan Segel Arcane menjaga NOVA ZENITH. Angka, pola, dan proporsi menahan Abyss."),
+    { id: "dark", atMs: 8e3, type: "spawnVfx", cue: "abyss-disturbance", durationMs: 3e3 },
+    { id: "quake", atMs: 8500, type: "shakeCamera", strength: "medium" },
+    dialogue("incident", 9e3, "Penjaga Segel", "Segel desa retak! Mereka membawa penjaga formula ke reruntuhan!"),
+    { id: "warrior", atMs: 16e3, type: "playAnimation", actor: "WARRIOR", animation: "shield", durationMs: 800 },
+    dialogue("protect", 16e3, "Warrior", "Berlindung di belakangku. Kita kejar mereka."),
+    { id: "mage", atMs: 22e3, type: "playAnimation", actor: "MAGE", animation: "arcaneCast", durationMs: 900 },
+    dialogue("trace", 22e3, "Mage", "Jejak rune ini menuju Ancient Ruins. Formulanya belum padam."),
+    { id: "thief", atMs: 28e3, type: "moveActor", actor: "THIEF", x: 250, y: 350, durationMs: 900 },
+    dialogue("path", 28e3, "Thief", "Aku tahu jalur hutan. Tetap berdekatan."),
+    { id: "healer", atMs: 34e3, type: "playAnimation", actor: "HEALER", animation: "blessing", durationMs: 900 },
+    dialogue("vow", 34e3, "Healer", "Kita pulangkan penjaga itu dan perbaiki segelnya bersama."),
+    dialogue("quest", 41e3, "Penjaga Segel", "Ikuti rune ke timur. Gabungkan Arcane Formula kalian.", 6e3),
+    { id: "end", atMs: 47500, type: "unlockControls" }
+  ] },
+  "encounter-1": { id: "encounter-1", version: 1, scene: "FOREST_PATH", durationMs: 4e3, steps: [{ id: "lock", atMs: 0, type: "lockControls" }, dialogue("hound", 0, "Warrior", "Shadow Hound menjaga jalur. Siapkan formula dan lindungi party.", 4e3)] },
+  "encounter-2": { id: "encounter-2", version: 1, scene: "RUINS_PATH", durationMs: 4e3, steps: [{ id: "lock", atMs: 0, type: "lockControls" }, dialogue("shaman", 0, "Mage", "Corrupted Shaman memperkuat dirinya. Perhatikan buff dan gelombang serangannya.", 4e3)] },
+  "boss-entrance": { id: "boss-entrance", version: 1, scene: "BOSS_CHAMBER", durationMs: 12e3, steps: [
+    { id: "lock", atMs: 0, type: "lockControls" },
+    { id: "silence", atMs: 0, type: "changeMusic", cue: "ruins" },
+    { id: "pan", atMs: 0, type: "cameraPan", x: 840, y: 380, durationMs: 1400 },
+    { id: "dark", atMs: 1500, type: "fadeOut", value: 0.6, durationMs: 700 },
+    { id: "silhouette", atMs: 2200, type: "spawnVfx", cue: "guardian-silhouette", durationMs: 6e3 },
+    { id: "cracks", atMs: 3200, type: "spawnVfx", cue: "stone-cracks", durationMs: 2e3 },
+    { id: "awake", atMs: 4200, type: "playAnimation", actor: "boss", animation: "entrance", durationMs: 2e3 },
+    { id: "roar", atMs: 6400, type: "playSfx", cue: "boss_roar" },
+    { id: "shake", atMs: 6500, type: "shakeCamera", strength: "heavy" },
+    { id: "title", atMs: 7400, type: "showTitle", title: "ABYSS GUARDIAN", durationMs: 3e3 },
+    { id: "hud", atMs: 10800, type: "triggerEvent", cue: "show-boss-hud" },
+    { id: "music", atMs: 11e3, type: "changeMusic", cue: "boss-combat" }
+  ] },
+  ending: { id: "ending", version: 1, scene: "BOSS_CHAMBER", durationMs: 14e3, steps: [
+    { id: "lock", atMs: 0, type: "lockControls" },
+    { id: "fallen", atMs: 0, type: "playAnimation", actor: "boss", animation: "death", durationMs: 2e3 },
+    { id: "calm", atMs: 2e3, type: "changeMusic", cue: "victory" },
+    dialogue("clue", 2500, "Mage", "Di balik batu ini\u2026 ada tujuh tanda lain. Segel ini hanya pintu pertama.", 5e3),
+    dialogue("servant", 8e3, "Suara dari Abyss", "The creature you defeated was merely a servant.", 6e3)
+  ] }
+};
+
+// src/game/story/runtime.ts
+function skipComplete(active, votes) {
+  return active.length > 0 && active.every((id) => votes.includes(id));
+}
+
+// src/game/exploration/model.ts
+var SCENES = ["VILLAGE", "FOREST_PATH", "RUINS_PATH", "ANCIENT_RUINS", "BOSS_CHAMBER"];
+var trees = [{ x: 340, y: 180, width: 70, height: 90, kind: "TREE" }, { x: 430, y: 510, width: 80, height: 90, kind: "TREE" }, { x: 780, y: 130, width: 75, height: 100, kind: "TREE" }, { x: 880, y: 540, width: 80, height: 100, kind: "TREE" }];
+var MAPS = Object.fromEntries(SCENES.map((id, index) => [id, { id, name: ["Ember Village", "Forest Path", "Ruins Path", "Ancient Ruins", "Seal Chamber"][index], width: 1152, height: 768, spawn: { x: 130, y: 384 }, ground: [2108978, 1519145, 2108716, 2631480, 2367535][index], obstacles: index === 0 ? [{ x: 310, y: 140, width: 180, height: 130, kind: "HOUSE" }, { x: 690, y: 520, width: 160, height: 130, kind: "HOUSE" }, ...trees.slice(2)] : index < 3 ? trees : [{ x: 350, y: 180, width: 70, height: 130, kind: "STONE" }, { x: 350, y: 500, width: 70, height: 130, kind: "STONE" }, { x: 790, y: 180, width: 70, height: 130, kind: "STONE" }, { x: 790, y: 500, width: 70, height: 130, kind: "STONE" }], zones: [{ id: "guide", label: "Baca petunjuk", x: 220, y: 384, radius: 80, kind: "NPC" }, { id: "exit", label: ["Ke Forest Path", "Shadow Hound", "Corrupted Shaman", "Ke ruang segel", "Bangunkan Abyss Guardian"][index], x: 1030, y: 384, radius: 90, kind: index === 1 || index === 2 ? "ENCOUNTER" : index === 4 ? "BOSS" : "EXIT" }] }]));
+
+// src/game/exploration/campaign.ts
+var worldPhase = (d) => !!d.campaign && ["EXPLORATION", "STORY", "ENDING", "COMPLETED"].includes(d.phase);
+function activeParty(d, c) {
+  return c.members.filter((m) => !m.left && !d.departed.includes(m.id) && c.now - m.lastSeen < GAME.reconnectGraceMs).map((m) => m.id);
+}
+function enterWorld(d, c, scene) {
+  const campaign = d.campaign;
+  campaign.scene = scene;
+  campaign.sceneToken = c.id();
+  campaign.rally = [];
+  campaign.activeIds = activeParty(d, c);
+  campaign.encounter = null;
+  d.phase = "EXPLORATION";
+  d.phaseId = c.id();
+  d.openedAt = c.now;
+  d.deadline = c.now + 5e3;
+  d.actors = [];
+  d.intent = null;
+  event(d.engine, "SCENE_ENTERED", scene);
+}
+function startCampaign(d, c) {
+  d.campaign = { version: 1, scene: "VILLAGE", sceneToken: c.id(), completed: [], rally: [], activeIds: [], encounter: null, completedStories: [] };
+  enterWorld(d, c, "VILLAGE");
+  beginStory(d, c, "opening");
+  return d;
+}
+function beginStory(d, c, id) {
+  const campaign = d.campaign, def = STORIES[id];
+  campaign.story = { id, version: 1, instanceId: c.id(), startedAt: c.now, endsAt: c.now + def.durationMs, step: 0, skipVotes: [] };
+  campaign.activeIds = activeParty(d, c);
+  d.phase = id === "ending" ? "ENDING" : "STORY";
+  d.phaseId = c.id();
+  d.openedAt = c.now;
+  d.deadline = Math.min(c.now + 5e3, campaign.story.endsAt);
+  event(d.engine, "CUTSCENE_STARTED", id);
+}
+function completeStory(d, c, onEncounter) {
+  const campaign = d.campaign, story = campaign.story;
+  campaign.completedStories = [.../* @__PURE__ */ new Set([...campaign.completedStories ?? [], story.id])];
+  delete campaign.story;
+  event(d.engine, "CUTSCENE_COMPLETED", story.id);
+  if (story.id === "ending") {
+    d.phase = "COMPLETED";
+    d.phaseId = c.id();
+    d.deadline = null;
+    return d;
+  }
+  if (story.id === "opening") {
+    enterWorld(d, c, "VILLAGE");
+    return d;
+  }
+  onEncounter(story.id === "encounter-1" ? "shadow-hound" : story.id === "encounter-2" ? "corrupted-shaman" : "abyss-guardian");
+  return d;
+}
+function applyWorld(d, uid, intent, c) {
+  const m = c.members.find((m2) => m2.userId === uid);
+  if (!m || !activeParty(d, c).includes(m.id)) throw Error("INACTIVE_ACTOR");
+  if (intent.kind === "SKIP") {
+    if (!d.campaign?.story || intent.phaseId !== d.phaseId || intent.storyInstance !== d.campaign.story.instanceId) throw Error("STALE_PHASE");
+    d.campaign.story.skipVotes = [.../* @__PURE__ */ new Set([...d.campaign.story.skipVotes, m.id])];
+    d.deadline = c.now;
+    return d;
+  }
+  if (intent.kind !== "RALLY" || !d.campaign || d.phase !== "EXPLORATION") throw Error("INVALID_PHASE");
+  if (intent.phaseId !== d.phaseId || intent.sceneToken !== d.campaign.sceneToken) throw Error("STALE_PHASE");
+  const a = d.campaign.rally;
+  d.campaign.rally = intent.ready ? [.../* @__PURE__ */ new Set([...a, m.id])] : a.filter((id) => id !== m.id);
+  d.deadline = c.now;
+  return d;
+}
+function advanceWorld(d, c, onEncounter) {
+  if (d.campaign?.story) {
+    const story = d.campaign.story;
+    d.campaign.activeIds = activeParty(d, c);
+    story.step = STORIES[story.id].steps.filter((s) => s.atMs <= c.now - story.startedAt).length;
+    if (c.now >= story.endsAt || skipComplete(d.campaign.activeIds, story.skipVotes)) return completeStory(d, c, onEncounter);
+    d.deadline = Math.min(story.endsAt, c.now + 5e3);
+    return d;
+  }
+  if (d.phase !== "EXPLORATION") return d;
+  const campaign = d.campaign;
+  campaign.activeIds = activeParty(d, c);
+  d.deadline = c.now + 5e3;
+  if (!campaign.activeIds.length) {
+    campaign.emptySince ??= c.now;
+    if (c.now - campaign.emptySince >= 6e5) {
+      d.phase = "ABORTED";
+      d.phaseId = c.id();
+      d.deadline = null;
+      event(d.engine, "EXPEDITION_ABORTED", "No adventurers returned within ten minutes.");
+    } else d.deadline = c.now + 3e4;
+    return d;
+  }
+  delete campaign.emptySince;
+  if (!campaign.activeIds.length || !campaign.activeIds.every((id) => campaign.rally.includes(id))) return d;
+  if (campaign.scene === "FOREST_PATH" || campaign.scene === "RUINS_PATH" || campaign.scene === "BOSS_CHAMBER") {
+    if (campaign.scene === "RUINS_PATH" && !campaign.completed.includes("shadow-hound") || campaign.scene === "BOSS_CHAMBER" && !campaign.completed.includes("corrupted-shaman")) throw Error("INVALID_PROGRESSION");
+    campaign.rally = [];
+    beginStory(d, c, campaign.scene === "FOREST_PATH" ? "encounter-1" : campaign.scene === "RUINS_PATH" ? "encounter-2" : "boss-entrance");
+    return d;
+  }
+  const index = SCENES.indexOf(campaign.scene);
+  enterWorld(d, c, SCENES[index + 1]);
+  return d;
+}
+function encounterWon(d, c) {
+  const campaign = d.campaign, id = campaign.encounter;
+  if (!id || campaign.completed.includes(id)) return;
+  campaign.completed.push(id);
+  event(d.engine, "ENCOUNTER_COMPLETED", id);
+  if (id === "abyss-guardian") {
+    beginStory(d, c, "ending");
+    return;
+  }
+  for (const p of d.engine.party) {
+    p.hp = p.maxHp;
+    p.resource = 40;
+    p.ultimate = Math.min(50, p.ultimate);
+  }
+  d.engine.effects = [];
+  enterWorld(d, c, id === "shadow-hound" ? "RUINS_PATH" : "ANCIENT_RUINS");
+}
+
 // src/game/multiplayer/server/authority.ts
 var CombatFault = class extends Error {
   constructor(code) {
@@ -527,6 +757,10 @@ function fail(code) {
 }
 var terminal = (d) => ["VICTORY", "DEFEAT", "ABORTED"].includes(d.phase);
 var phaseTransitions = {
+  STORY: [],
+  EXPLORATION: [],
+  ENDING: [],
+  COMPLETED: [],
   COMBAT_PLANNING: ["MATH_CHALLENGE"],
   MATH_CHALLENGE: ["COMBAT_RESOLUTION", "VICTORY"],
   COMBAT_RESOLUTION: ["BOSS_ACTION"],
@@ -578,7 +812,7 @@ function openTurn(d, c) {
   d.engine.phase = "COMBAT_PLANNING";
   enter(d, c, "COMBAT_PLANNING", GAME.planningMs);
 }
-function startAuthority(sessionId, roomId, members, seed, c) {
+function startAuthority(sessionId, roomId, members, seed, c, campaign = false) {
   if (!members.length || members.length > 4 || members.some((m) => !m.classId)) fail("INVALID_ROSTER");
   const sorted = [...members].sort((a, b) => a.seat - b.seat), engine = createCombat(sorted.map((m) => m.classId), seed);
   engine.mode = "SERVER";
@@ -588,18 +822,21 @@ function startAuthority(sessionId, roomId, members, seed, c) {
     p.seat = sorted[i].seat;
   });
   const d = { schema: 1, sessionId, roomId, engine, turnId: "", phase: "COMBAT_PLANNING", phaseId: "", openedAt: c.now, deadline: null, actors: [], actions: {}, assignments: [], used: {}, intent: null, departed: [], suspendedAt: null };
+  if (campaign) return startCampaign(d, c);
   event(engine, "SESSION_STARTED", "NOVA ZENITH \u2014 Abyss Guardian encounter");
   openTurn(d, c);
   return d;
 }
 function assign(d, c, actorId, difficulty, context, bonus = 0) {
   const actor = d.engine.party.find((p) => p.id === actorId);
-  const preferred = { WARRIOR: ["ARITHMETIC", "RATIO"], MAGE: ["ALGEBRA"], THIEF: ["PATTERN", "PROBABILITY"], HEALER: ["PERCENTAGE", "RATIO"] };
+  const preferred = { WARRIOR: ["ARITHMETIC", "NUMBER_SENSE", "RATIO", "LINEAR_EQUATIONS"], MAGE: ["ALGEBRA", "FORMULA", "LINEAR_EQUATIONS"], THIEF: ["PATTERN", "SEQUENCES", "LOGIC", "PROBABILITY"], HEALER: ["PERCENTAGE", "RATIO", "MEASUREMENT", "FRACTIONS"] };
   const used = d.used[actorId] ?? [], all = c.bank.filter((q2) => q2.difficulty === difficulty);
   if (!all.length) fail("QUESTION_BANK_UNAVAILABLE");
-  const fresh = all.filter((q2) => !used.includes(q2.id)), pool = fresh.length ? fresh : all;
-  const matches = pool.filter((q2) => preferred[actor.classId].includes(q2.category));
-  const candidates = matches.length ? matches : pool, q = candidates[Math.floor(random(d.engine) * candidates.length)];
+  const globalUsed = new Set(Object.values(d.used).flat()), thisPhase = new Set(d.assignments.map((q2) => q2.questionId));
+  const fresh = all.filter((q2) => !globalUsed.has(q2.id)), ownFresh = all.filter((q2) => !used.includes(q2.id)), base = fresh.length ? fresh : ownFresh.length ? ownFresh : all;
+  const distinct = base.filter((q2) => !thisPhase.has(q2.id)), pool = distinct.length ? distinct : base;
+  const matches = pool.filter((q2) => q2.affinity?.includes(actor.classId) || preferred[actor.classId].includes(q2.category));
+  const candidates = matches.length && random(d.engine) < 0.65 ? matches : pool, q = candidates[Math.floor(random(d.engine) * candidates.length)];
   const options = q.options.map((o) => ({ id: o.id, token: c.id(), text: o.text }));
   for (let i = options.length - 1; i > 0; i--) {
     const j = Math.floor(random(d.engine) * (i + 1));
@@ -705,6 +942,8 @@ function expire(d, c) {
   }
 }
 function dueAt(d) {
+  if (d.phase === "COMPLETED") return null;
+  if (worldPhase(d)) return d.deadline;
   if (terminal(d)) return null;
   if (d.phase === "COMBAT_PLANNING" && d.actors.every((id) => !!d.actions[id])) return Math.min(d.deadline, d.openedAt + GAME.minimumPlanningMs);
   const context = currentContext(d), pending = d.assignments.filter((a) => a.context === context);
@@ -717,6 +956,7 @@ function dueAt(d) {
 }
 function advance(input, c) {
   const d = structuredClone(input);
+  if (worldPhase(d)) return advanceWorld(d, c, (id) => startEncounter(d, c, id));
   if (terminal(d)) return d;
   const context = currentContext(d);
   let changed = false;
@@ -732,12 +972,15 @@ function advance(input, c) {
     const runeReady = d.phase === "TEAM_RUNE" && d.engine.pending?.kind === "RUNE" && current.filter((q) => q.performance && q.performance !== "FAILED").length >= d.engine.pending.required;
     if (!context || runeReady || current.every((q) => q.performance !== null) || c.now >= d.deadline) completePhase(d, c);
   }
+  if (d.campaign && d.phase === "VICTORY") encounterWon(d, c);
   void changed;
   return d;
 }
 function applyIntent(input, uid, intent, c) {
   if (["GET", "START", "PUMP"].includes(intent.kind)) return input;
-  const d = structuredClone(input), member = c.members.find((m) => m.userId === uid);
+  const d = structuredClone(input);
+  if (intent.kind === "RALLY" || intent.kind === "SKIP") return applyWorld(d, uid, intent, c);
+  const member = c.members.find((m) => m.userId === uid);
   if (!member || !d.engine.party.some((p) => p.id === member.id)) fail("NOT_A_MEMBER");
   if (!("turnId" in intent) || intent.turnId !== d.turnId) fail("STALE_TURN");
   if (intent.phaseId !== d.phaseId) fail("STALE_PHASE");
@@ -787,7 +1030,32 @@ function publicSnapshot(d, version, now, uid, members = []) {
   const myActorId = members.find((m) => m.userId === uid)?.id ?? null;
   const q = d.assignments.find((q2) => q2.actorId === myActorId && q2.context === currentContext(d));
   const assignment = q ? { id: q.id, actorId: q.actorId, context: q.context, difficulty: q.difficulty, prompt: q.prompt, options: q.options, startsAt: q.startsAt, deadline: q.deadline, performance: q.performance } : null;
-  return { schema: 1, sessionId: d.sessionId, roomId: d.roomId, version, serverNow: now, turnId: d.turnId, turn: d.engine.turn, phase: d.phase, phaseId: d.phaseId, deadline: d.deadline, partySize: d.engine.partySize, party: d.engine.party, boss: d.engine.boss, effects: d.engine.effects, combo: d.engine.combo, pendingBoss: d.intent, progress: d.engine.party.map((p) => ({ actorId: p.id, locked: !!d.actions[p.id], answered: d.assignments.some((a) => a.actorId === p.id && a.context === currentContext(d) && a.performance !== null), performance: d.assignments.find((a) => a.actorId === p.id && a.context === currentContext(d))?.performance ?? null })), events: d.engine.events.slice(-50), lastEventSeq: d.engine.nextSeq - 1, assignment, myActorId };
+  return { ...d.engine.enemyId ? { enemyId: d.engine.enemyId } : {}, ...d.campaign ? { campaign: d.campaign } : {}, schema: 1, sessionId: d.sessionId, roomId: d.roomId, version, serverNow: now, turnId: d.turnId, turn: d.engine.turn, phase: d.phase, phaseId: d.phaseId, deadline: d.deadline, partySize: d.engine.partySize, party: d.engine.party, boss: d.engine.boss, effects: d.engine.effects, combo: d.engine.combo, pendingBoss: d.intent, progress: d.engine.party.map((p) => ({ actorId: p.id, locked: !!d.actions[p.id], answered: d.assignments.some((a) => a.actorId === p.id && a.context === currentContext(d) && a.performance !== null), performance: d.assignments.find((a) => a.actorId === p.id && a.context === currentContext(d))?.performance ?? null })), events: d.engine.events.slice(-50), lastEventSeq: d.engine.nextSeq - 1, assignment, myActorId };
+}
+function startEncounter(d, c, enemyId) {
+  const previous = d.engine, engine = createEncounter(previous.party.map((p) => p.classId), enemyId, previous.seed);
+  engine.mode = "SERVER";
+  engine.turn = previous.turn + (d.campaign.completed.length ? 1 : 0);
+  engine.party.forEach((p, i) => {
+    const old = previous.party[i];
+    p.id = old.id;
+    p.name = old.name;
+    p.seat = old.seat;
+    p.ultimate = Math.min(50, old.ultimate);
+  });
+  engine.events = previous.events;
+  engine.nextSeq = previous.nextSeq;
+  d.engine = engine;
+  d.campaign.encounter = enemyId;
+  d.identityRound = void 0;
+  d.phaseId = "";
+  d.turnId = "";
+  d.actors = [];
+  d.actions = {};
+  d.assignments = [];
+  d.intent = null;
+  event(engine, "ENCOUNTER_STARTED", engine.boss.name);
+  openTurn(d, c);
 }
 
 // src/game/multiplayer/server/service.ts
@@ -800,7 +1068,7 @@ async function execute2(p, sessionId, uid, intent, requestId, token = null, id =
     let mutation = false;
     if (!d) {
       if (l.state !== "STORY") throw new CombatFault("ROOM_NOT_STARTED");
-      d = startAuthority(l.sessionId, l.roomId, l.members, parseInt(l.seed.replaceAll("-", "").slice(0, 8), 16), c);
+      d = startAuthority(l.sessionId, l.roomId, l.members, parseInt(l.seed.replaceAll("-", "").slice(0, 8), 16), c, l.campaignEnabled);
       mutation = true;
     }
     const read = ["GET", "START", "PUMP"].includes(intent.kind);
@@ -840,6 +1108,11 @@ function parseIntent(value) {
   };
   const kind = str("kind");
   if (kind === "START" || kind === "GET" || kind === "PUMP") return { kind };
+  if (kind === "SKIP") return { kind, phaseId: str("phaseId"), version: str("version", 20), storyInstance: str("storyInstance") };
+  if (kind === "RALLY") {
+    if (typeof o.ready !== "boolean") throw new CombatFault("INVALID_READY");
+    return { kind, phaseId: str("phaseId"), version: str("version", 20), sceneToken: str("sceneToken"), ready: o.ready };
+  }
   if (!["ACTION", "ANSWER", "LEAVE"].includes(kind)) throw new CombatFault("INVALID_COMMAND");
   const base = { turnId: str("turnId"), phaseId: str("phaseId"), version: str("version", 20) };
   if (kind === "ACTION") return { kind, ...base, skillId: str("skillId"), targetId: str("targetId"), ...o.reviveTargetId ? { reviveTargetId: str("reviveTargetId") } : {} };
@@ -858,10 +1131,12 @@ async function rpc(name, args = {}) {
   return data;
 }
 var bankCache;
+var bankCachedAt = 0;
 var persistence = {
   load: (sessionId, uid, token, requestId, intent) => rpc("nz_combat_load_v1", { p_session: sessionId, p_uid: uid, p_token: token, p_request: requestId, p_payload: intent }),
   bank: async () => {
-    if (!bankCache) {
+    if (!bankCache || Date.now() - bankCachedAt > 6e4) {
+      bankCachedAt = Date.now();
       bankCache = rpc("nz_combat_bank_v1");
       bankCache.catch(() => {
         bankCache = null;

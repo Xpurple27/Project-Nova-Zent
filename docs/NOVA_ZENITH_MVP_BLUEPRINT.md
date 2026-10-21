@@ -11,7 +11,7 @@ The detailed implementation contract is docs/MULTIPLAYER_COMBAT_ARCHITECTURE.md.
 
 ## A. Architecture
 Next.js/React serve UI, Supabase Auth identifies guests, PostgreSQL owns lobby mutations, Realtime distributes sanitized snapshots and cosmetic presence.
-Phaser is a future renderer. Vercel is frontend hosting. Supabase Edge Functions run the shared pure engine; one service-only SQL commit persists each mutation atomically. No host browser is a game server.
+Phaser 3.90 renders exploration through a disposable React adapter. Vercel is frontend hosting. Supabase Edge Functions run the shared pure engine; one service-only SQL commit persists each mutation atomically. No host browser is a game server.
 
 ## B. State
 Persistent: room membership, class, readiness, session state, locked roster; combat state, actions, private assignments and event history.
@@ -24,7 +24,7 @@ LOBBY → CHARACTER_SELECT → READY → STORY → EXPLORATION → ENCOUNTER_STA
 Combat: TURN_START → COMBAT_PLANNING → MATH_CHALLENGE → LOCK_ACTION → COMBAT_RESOLUTION → BOSS_ACTION → optional DEFENSIVE_REACTION or TEAM_RUNE → TURN_END.
 Terminal/branch states: VICTORY, DEFEAT, ENDING, COMPLETED, SUSPENDED, ABORTED.
 See src/game/core/fsm.ts for the transition graph, including context-sensitive MATH_CHALLENGE exits.
-START freezes the roster at STORY; the scheduled worker or any member then ensures the single encounter exists. STORY is only a durable integration checkpoint in this milestone.
+START freezes the roster at STORY; the scheduled worker or any member then ensures the single encounter exists. For newly started rooms, campaign_enabled freezes the High 6–13 flow: opening → exploration → Hound → exploration → Shaman → ruins/chamber → Guardian → ending. Existing boss-only documents keep their behavior.
 
 ## D. Combat timing
 Planning 12s (minimum early close 3s). Questions Easy 12s, Medium 18s, Hard 25s.
@@ -49,7 +49,7 @@ Server assignment has immutable question revision, option permutation, owner, co
 Online payload never contains answers. One submitted answer; no reroll or timer reset on reconnect.
 Correct at elapsed ≤50% available time: PERFECT (1.25); other correct before deadline SUCCESS (1.00); wrong/timeout FAILED (.40).
 At the deadline is late. Client timestamps are untrusted.
-Current development fixtures are deliberately non-secret and only power the opt-in offline simulator. The private pilot bank now has 20 questions per difficulty; curriculum approval remains a release gate.
+Current development fixtures are deliberately non-secret and only power the opt-in offline simulator. The private production-v1 bank now has 40 reviewed items per difficulty; pilot rows are retired. See QUESTION_BANK_SPEC.md and QUESTION_BANK_QA_REPORT.md; human solve-time calibration remains a release gate.
 
 ## G. Formulas
 Use nonnegative half-up rounding once at the end: floor(x+.5).
@@ -125,7 +125,7 @@ Baseline command quotas exist; rejected-request/IP anti-bruteforce still require
 Canonical updates: only session_views through Postgres Changes with member RLS.
 Private Presence topic nz:room:{roomId}:presence. Its payload cannot affect authorization.
 Fallback polling3s; heartbeat10s. Subscriptions clean up on room change/unmount.
-Future motion uses per-sender authorized Broadcast, max10Hz while moving; no per-frame PostgreSQL writes.
+Motion uses per-sender authorized Broadcast, max10Hz while moving and 1Hz while idle; no per-frame PostgreSQL writes.
 Snapshot wins over presentation events.
 
 ## N. Modules
@@ -134,7 +134,7 @@ src/components/{combat,lobby}; src/lib/supabase separates browser/server/admin.
 No combat math in React. Server-only imports protect privileged boundary.
 
 ## O. Phaser/React
-Only intent/visual bridge contracts in High1–5. Future React sends snapshot/checkpoint/scene commands.
+React sends authoritative phase/scene-token/checkpoint views through game/exploration/bridge.ts. Phaser sends motion/interaction intents.
 Phaser sends motion/interaction/rally intent, never HP/defeat/victory.
 Reconnection spawns at durable checkpoint. Spatial anti-cheat is not promised for ephemeral movement.
 
@@ -146,9 +146,7 @@ Impact markers never apply damage.
 The supplied art references are now recorded in ART_BIBLE.md and SPRITE_PIPELINE.md. Final exported assets remain out of this milestone.
 
 ## Q. Cutscene
-Data-driven timeline contract only. id/version/scene/duration/events(atMs,duration,type,payload).
-Future controls/camera/dialogue/VFX/SFX/transition use server start/end times; no browser ACK dependency.
-No prerecorded cinematic required or implemented.
+Typed story definitions/runtime implement opening, encounter hooks, boss entrance and ending. Server instance/start/end times own logical completion; all currently active grace-roster members must vote skip. Required final mutations are server-only, idempotent and independent of browser ACKs. Reconnect seeks current logical time and suppresses old one-shot cues. No prerecorded video is required.
 
 ## R. Analytics
 Structured offline events record actor, turn, target, damage/heal, effects, phases, Rage and outcome.
@@ -183,7 +181,7 @@ UI internals and placeholder presentation may change within the asset and access
 The owner's High1–5 offline delivery amendment above is explicit; it does not authorize client-authoritative online combat.
 
 ## X. Open decisions
-Final sprite dimensions, frame counts and atlas exports require production artwork.
-Production question bank requires target curriculum/age.
+Sprite frame dimensions/anchors/clip rows are frozen in SPRITE_PIPELINE.md; final art may replace placeholder files through the manifest.
+Production bank targets upper SMP/early SMA prerequisites; classroom timing and independent human content review remain open validation tasks.
 Final licensed audio/art sources are not selected.
 Infrastructure capacity, concurrent lobby UAT and balance targets require measured evidence.

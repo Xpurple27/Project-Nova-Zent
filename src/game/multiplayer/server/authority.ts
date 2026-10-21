@@ -1,4 +1,7 @@
+import {createEncounter} from '../../combat/encounters';
+import type {EnemyId} from '../../enemies/definitions';
 /** SERVER MODULE: never import from a client component. Keys are private persistence data. */
+import {startCampaign,worldPhase,advanceWorld,applyWorld,encounterWon,type Campaign} from '../../exploration/campaign';
 import { CHARACTERS, GAME, SKILL_BY_ID } from '../../config';
 import type { BossAction, CharacterClass, CombatAction, CombatState, QuestionDifficulty } from '../../core/types';
 import { gradeAnswer } from '../../core/math';
@@ -7,15 +10,15 @@ import { applyBossIntent, event, random } from '../../boss/engine';
 import { magnitude } from '../../combat/effects';
 import type { CombatSnapshot, Intent, OnlinePhase, SafeAssignment } from '../protocol';
 export type Member={id:string;userId:string;classId:CharacterClass;nickname:string;seat:number;lastSeen:number;left?:boolean};
-export type BankQuestion={id:string;difficulty:QuestionDifficulty;category:string;prompt:string;options:{id:string;text:string}[];correct:string};
+export type BankQuestion={id:string;difficulty:QuestionDifficulty;category:string;prompt:string;options:{id:string;text:string}[];correct:string;affinity?:CharacterClass[]};
 export type Assignment=SafeAssignment & {questionId:string;correctToken:string;answeredAt:number|null;selectedToken:string|null;cancelled?:boolean};
-export type Authority={schema:1;sessionId:string;roomId:string;engine:CombatState;turnId:string;identityRound?:number;phase:OnlinePhase;phaseId:string;openedAt:number;deadline:number|null;actors:string[];actions:Record<string,CombatAction>;assignments:Assignment[];used:Record<string,string[]>;intent:BossAction|null;departed:string[];suspendedAt:number|null};
+export type Authority={campaign?:Campaign;schema:1;sessionId:string;roomId:string;engine:CombatState;turnId:string;identityRound?:number;phase:OnlinePhase;phaseId:string;openedAt:number;deadline:number|null;actors:string[];actions:Record<string,CombatAction>;assignments:Assignment[];used:Record<string,string[]>;intent:BossAction|null;departed:string[];suspendedAt:number|null};
 export type Context={now:number;members:Member[];bank:BankQuestion[];id:()=>string};
 export class CombatFault extends Error { constructor(public code:string){super(code);} }
 function fail(code:string):never {throw new CombatFault(code);}
 const terminal=(d:Authority)=>['VICTORY','DEFEAT','ABORTED'].includes(d.phase);
 const phaseTransitions:Record<OnlinePhase,readonly OnlinePhase[]>={
- COMBAT_PLANNING:['MATH_CHALLENGE'],MATH_CHALLENGE:['COMBAT_RESOLUTION','VICTORY'],COMBAT_RESOLUTION:['BOSS_ACTION'],
+ STORY:[],EXPLORATION:[],ENDING:[],COMPLETED:[],COMBAT_PLANNING:['MATH_CHALLENGE'],MATH_CHALLENGE:['COMBAT_RESOLUTION','VICTORY'],COMBAT_RESOLUTION:['BOSS_ACTION'],
  BOSS_ACTION:['DEFENSIVE_REACTION','TEAM_RUNE','TURN_END','DEFEAT'],DEFENSIVE_REACTION:['TURN_END','DEFEAT'],TEAM_RUNE:['TURN_END','DEFEAT'],
  TURN_END:['COMBAT_PLANNING','VICTORY','DEFEAT','SUSPENDED','ABORTED'],SUSPENDED:['SUSPENDED','COMBAT_PLANNING','DEFEAT','ABORTED'],VICTORY:[],DEFEAT:[],ABORTED:[]
 };
@@ -41,21 +44,24 @@ function openTurn(d:Authority,c:Context){
  d.suspendedAt=null;d.actors=eligible.map(p=>p.id);d.engine.phase='COMBAT_PLANNING';
  enter(d,c,'COMBAT_PLANNING',GAME.planningMs);
 }
-export function startAuthority(sessionId:string,roomId:string,members:Member[],seed:number,c:Context):Authority {
+export function startAuthority(sessionId:string,roomId:string,members:Member[],seed:number,c:Context,campaign=false):Authority {
  if(!members.length||members.length>4||members.some(m=>!m.classId))fail('INVALID_ROSTER');
  const sorted=[...members].sort((a,b)=>a.seat-b.seat),engine=createCombat(sorted.map(m=>m.classId),seed);
  engine.mode='SERVER';engine.party.forEach((p,i)=>{p.id=sorted[i].id;p.name=sorted[i].nickname;p.seat=sorted[i].seat;});
  const d:Authority={schema:1,sessionId,roomId,engine,turnId:'',phase:'COMBAT_PLANNING',phaseId:'',openedAt:c.now,deadline:null,actors:[],actions:{},assignments:[],used:{},intent:null,departed:[],suspendedAt:null};
+ if(campaign)return startCampaign(d,c);
  event(engine,'SESSION_STARTED','NOVA ZENITH — Abyss Guardian encounter');openTurn(d,c);return d;
 }
 function assign(d:Authority,c:Context,actorId:string,difficulty:QuestionDifficulty,context:Assignment['context'],bonus=0){
  const actor=d.engine.party.find(p=>p.id===actorId)!;
- const preferred:Record<CharacterClass,string[]>={WARRIOR:['ARITHMETIC','RATIO'],MAGE:['ALGEBRA'],THIEF:['PATTERN','PROBABILITY'],HEALER:['PERCENTAGE','RATIO']};
+ const preferred:Record<CharacterClass,string[]>={WARRIOR:['ARITHMETIC','NUMBER_SENSE','RATIO','LINEAR_EQUATIONS'],MAGE:['ALGEBRA','FORMULA','LINEAR_EQUATIONS'],THIEF:['PATTERN','SEQUENCES','LOGIC','PROBABILITY'],HEALER:['PERCENTAGE','RATIO','MEASUREMENT','FRACTIONS']};
  const used=d.used[actorId]??[],all=c.bank.filter(q=>q.difficulty===difficulty);
  if(!all.length)fail('QUESTION_BANK_UNAVAILABLE');
- const fresh=all.filter(q=>!used.includes(q.id)),pool=fresh.length?fresh:all;
- const matches=pool.filter(q=>preferred[actor.classId].includes(q.category));
- const candidates=matches.length?matches:pool,q=candidates[Math.floor(random(d.engine)*candidates.length)];
+ const globalUsed=new Set(Object.values(d.used).flat()),thisPhase=new Set(d.assignments.map(q=>q.questionId));
+ const fresh=all.filter(q=>!globalUsed.has(q.id)),ownFresh=all.filter(q=>!used.includes(q.id)),base=fresh.length?fresh:ownFresh.length?ownFresh:all;
+ const distinct=base.filter(q=>!thisPhase.has(q.id)),pool=distinct.length?distinct:base;
+ const matches=pool.filter(q=>q.affinity?.includes(actor.classId)||preferred[actor.classId].includes(q.category));
+ const candidates=matches.length&&random(d.engine)<.65?matches:pool,q=candidates[Math.floor(random(d.engine)*candidates.length)];
  const options=q.options.map(o=>({id:o.id,token:c.id(),text:o.text}));
  for(let i=options.length-1;i>0;i--){const j=Math.floor(random(d.engine)*(i+1));[options[i],options[j]]=[options[j],options[i]];}
  const startsAt=c.now+1000;
@@ -123,6 +129,8 @@ function expire(d:Authority,c:Context){
  }
 }
 export function dueAt(d:Authority):number|null {
+ if(d.phase==='COMPLETED')return null;
+ if(worldPhase(d))return d.deadline;
  if(terminal(d))return null;
  if(d.phase==='COMBAT_PLANNING'&&d.actors.every(id=>!!d.actions[id]))return Math.min(d.deadline!,d.openedAt+GAME.minimumPlanningMs);
  const context=currentContext(d),pending=d.assignments.filter(a=>a.context===context);
@@ -134,7 +142,7 @@ export function dueAt(d:Authority):number|null {
  return d.deadline;
 }
 export function advance(input:Authority,c:Context):Authority {
- const d=structuredClone(input);if(terminal(d))return d;
+ const d=structuredClone(input);if(worldPhase(d))return advanceWorld(d,c,id=>startEncounter(d,c,id));if(terminal(d))return d;
  const context=currentContext(d);let changed=false;
  if(context)for(const q of d.assignments.filter(q=>q.context===context&&q.performance===null&&q.deadline<=c.now)){
   q.performance='FAILED';q.answeredAt=c.now;event(d.engine,'MATH_FAILED','Formula expired',undefined,q.actorId);changed=true;
@@ -145,11 +153,12 @@ export function advance(input:Authority,c:Context):Authority {
   const runeReady=d.phase==='TEAM_RUNE'&&d.engine.pending?.kind==='RUNE'&&current.filter(q=>q.performance&&q.performance!=='FAILED').length>=d.engine.pending.required;
   if(!context||runeReady||current.every(q=>q.performance!==null)||c.now>=d.deadline!)completePhase(d,c);
  }
+ if(d.campaign&&d.phase==='VICTORY')encounterWon(d,c);
  void changed;return d;
 }
 export function applyIntent(input:Authority,uid:string,intent:Intent,c:Context):Authority {
  if(['GET','START','PUMP'].includes(intent.kind))return input;
- const d=structuredClone(input),member=c.members.find(m=>m.userId===uid);
+ const d=structuredClone(input);if(intent.kind==='RALLY'||intent.kind==='SKIP')return applyWorld(d,uid,intent,c);const member=c.members.find(m=>m.userId===uid);
  if(!member||!d.engine.party.some(p=>p.id===member.id))fail('NOT_A_MEMBER');
  if(!('turnId' in intent)||intent.turnId!==d.turnId)fail('STALE_TURN');
  if(intent.phaseId!==d.phaseId)fail('STALE_PHASE');
@@ -185,5 +194,12 @@ export function publicSnapshot(d:Authority,version:string,now:number,uid?:string
  const myActorId=members.find(m=>m.userId===uid)?.id??null;
  const q=d.assignments.find(q=>q.actorId===myActorId&&q.context===currentContext(d));
  const assignment=q?{id:q.id,actorId:q.actorId,context:q.context,difficulty:q.difficulty,prompt:q.prompt,options:q.options,startsAt:q.startsAt,deadline:q.deadline,performance:q.performance}:null;
- return {schema:1,sessionId:d.sessionId,roomId:d.roomId,version,serverNow:now,turnId:d.turnId,turn:d.engine.turn,phase:d.phase,phaseId:d.phaseId,deadline:d.deadline,partySize:d.engine.partySize,party:d.engine.party,boss:d.engine.boss,effects:d.engine.effects,combo:d.engine.combo,pendingBoss:d.intent,progress:d.engine.party.map(p=>({actorId:p.id,locked:!!d.actions[p.id],answered:d.assignments.some(a=>a.actorId===p.id&&a.context===currentContext(d)&&a.performance!==null),performance:d.assignments.find(a=>a.actorId===p.id&&a.context===currentContext(d))?.performance??null})),events:d.engine.events.slice(-50),lastEventSeq:d.engine.nextSeq-1,assignment,myActorId};
+ return {...(d.engine.enemyId?{enemyId:d.engine.enemyId}:{}),...(d.campaign?{campaign:d.campaign}:{}),schema:1,sessionId:d.sessionId,roomId:d.roomId,version,serverNow:now,turnId:d.turnId,turn:d.engine.turn,phase:d.phase,phaseId:d.phaseId,deadline:d.deadline,partySize:d.engine.partySize,party:d.engine.party,boss:d.engine.boss,effects:d.engine.effects,combo:d.engine.combo,pendingBoss:d.intent,progress:d.engine.party.map(p=>({actorId:p.id,locked:!!d.actions[p.id],answered:d.assignments.some(a=>a.actorId===p.id&&a.context===currentContext(d)&&a.performance!==null),performance:d.assignments.find(a=>a.actorId===p.id&&a.context===currentContext(d))?.performance??null})),events:d.engine.events.slice(-50),lastEventSeq:d.engine.nextSeq-1,assignment,myActorId};
+}
+
+function startEncounter(d:Authority,c:Context,enemyId:EnemyId){
+ const previous=d.engine,engine=createEncounter(previous.party.map(p=>p.classId),enemyId,previous.seed);engine.mode='SERVER';engine.turn=previous.turn+(d.campaign!.completed.length?1:0);
+ engine.party.forEach((p,i)=>{const old=previous.party[i];p.id=old.id;p.name=old.name;p.seat=old.seat;p.ultimate=Math.min(50,old.ultimate);});
+ engine.events=previous.events;engine.nextSeq=previous.nextSeq;d.engine=engine;d.campaign!.encounter=enemyId;d.identityRound=undefined;d.phaseId='';d.turnId='';d.actors=[];d.actions={};d.assignments=[];d.intent=null;
+ event(engine,'ENCOUNTER_STARTED',engine.boss.name);openTurn(d,c);
 }

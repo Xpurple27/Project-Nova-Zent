@@ -1,3 +1,4 @@
+import {normalEnemy,normalAction} from '../enemies/definitions';
 
 import { BOSS, GAME } from "../config";
 import { clamp, roundHalfUp, weightedIndex } from "../core/math";
@@ -11,11 +12,12 @@ export const runeRequired=(n:number)=>Math.max(1,Math.ceil(n*.75));
 export function createBoss(n:number):BossState {
  const maxHp=bossHp(n);return {id:"boss",name:"Abyss Guardian",hp:maxHp,maxHp,phase:1,rage:0,shield:0,cycle:0,lastSpearRound:-100,lastUtility:null,barrierUsed:false,heavy:"NONE",core:null,normalSinceHeavy:2};
 }
-export function event(s:CombatState,type:string,text:string,amount?:number,actorId?:string,targetId?:string):void {
- s.events.push({seq:s.nextSeq++,turn:s.turn,type,text,amount,actorId,targetId});
+export function event(s:CombatState,type:string,text:string,amount?:number,actorId?:string,targetId?:string,skillId?:string):void {
+ s.events.push({seq:s.nextSeq++,turn:s.turn,type,text,amount,actorId,targetId,...(skillId?{skillId}:{}),...(s.enemyId?{encounterId:s.enemyId}:{})});
 }
 export function random(s:CombatState):number {s.seed=(Math.imul(s.seed,1664525)+1013904223)>>>0;return s.seed/4294967296;}
 export function updatePhase(s:CombatState):void {
+ if(normalEnemy(s))return;
  const ratio=s.boss.hp/s.boss.maxHp;
  const next:BossPhase=ratio<.25?3:ratio<.6?2:1;
  while(s.boss.phase<next){s.boss.phase=(s.boss.phase+1) as BossPhase;event(s,"BOSS_PHASE_CHANGED",s.boss.phase===2?"ENRAGED — Phase 2":"DESPERATION — Phase 3");}
@@ -37,7 +39,8 @@ function utility(s:CombatState):"ROAR"|"ARMOR"|"CLAW" {
  return !roar?"ROAR":!armor?"ARMOR":"CLAW";
 }
 export function selectBossAction(s:CombatState,rng:()=>number=()=>random(s)):BossAction {
- const b=s.boss;
+ const b=s.boss,enemy=normalEnemy(s);
+ if(enemy){const skill=enemy.cycle[b.cycle%enemy.cycle.length],action=normalAction(s,skill)!;return action.kind==='SINGLE'?{skill,targetId:selectTarget(s,rng)}:{skill};}
  if(b.heavy==="CORE_EXPOSED")return {skill:"CATACLYSM"};
  if(b.rage>=100&&b.normalSinceHeavy>=BOSS.normalHeavyLockout)return {skill:"CHARGE"};
  const slot=b.cycle%5;
@@ -65,13 +68,18 @@ export function gainUltimate(s:CombatState,p:Character,amount:number):void {
  p.ultimate=clamp(p.ultimate+Math.max(0,add),0,100);s.gainThisRound[p.id]=already+Math.max(0,add);
 }
 export function settleBoss(s:CombatState,intent:BossAction):void {
+ if(normalEnemy(s)){s.boss.cycle++;return;}
  const normal=intent.skill!=="CHARGE"&&intent.skill!=="CATACLYSM";
  if(normal){s.boss.cycle++;s.boss.normalSinceHeavy++;s.boss.rage=clamp(s.boss.rage+BOSS.phaseRage[s.boss.phase],0,100);}
  if(s.boss.rage>=100&&s.boss.heavy==="NONE")s.boss.heavy="PENDING_CHARGE";
  event(s,"RAGE_CHANGED","Rage "+s.boss.rage,s.boss.rage);
 }
 export function applyBossIntent(s:CombatState,intent:BossAction):void {
- const b=s.boss;
+ const b=s.boss,action=normalAction(s,intent.skill);
+ if(action){if(action.reaction){s.pending={kind:'REACTION',intent,actorId:intent.targetId!};s.phase='DEFENSIVE_REACTION';return;}
+ if(action.kind==='AOE'){for(const p of s.party.filter(p=>p.hp>0&&p.active!==false))hurt(s,p,incomingDamage(s,p,action.damage));consume(s,'FROST','boss');}
+ if(action.id==='DARK_CHANT'){putEffect(s,'ARMOR','boss','boss',.15,s.turn+2,s.turn+1);for(const p of s.party.filter(p=>p.hp>0&&p.active!==false))putEffect(s,'ROAR','boss',p.id,.10,s.turn+2,s.turn+1,true,true);event(s,'EFFECT_APPLIED','Dark Chant — armor +15%, party effectiveness −10%');}
+ settleBoss(s,intent);return;}
  if(intent.skill==="CLAW"||intent.skill==="SPEAR"){
    if(intent.skill==="SPEAR")b.lastSpearRound=s.turn;
    s.pending={kind:"REACTION",intent,actorId:intent.targetId!};s.phase="DEFENSIVE_REACTION";return;

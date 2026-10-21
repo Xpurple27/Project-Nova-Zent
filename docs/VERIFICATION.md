@@ -1,4 +1,7 @@
-# Verification — NOVA ZENITH Extra High2
+# Verification — NOVA ZENITH
+Current High6–13 evidence is in [HIGH_6_13_EXECUTION.md](HIGH_6_13_EXECUTION.md). Its final 72 Node tests, 18 browser tests and production build pass. Four live browser contexts completed the campaign with matching final snapshots; database audit recorded 415 events and no duplicate player action groups. The 120 private production items supersede the pilot-bank release limitation below. Historical Extra High2/hCaptcha evidence is retained as dated context; remaining human CAPTCHA/device/balance/release gates are explicitly carried into the current report.
+
+## Historical Extra High2 checkpoint
 Date:21 October2026, UTC. Evidence distinguishes live Supabase traffic from local simulations.
 
 ## Executed checks

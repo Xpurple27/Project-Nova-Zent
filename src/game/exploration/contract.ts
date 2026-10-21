@@ -1,4 +1,5 @@
-
-/** Future Phaser integration. No exploration implementation in High 1–5. */
-export type ExplorationIntent={type:"RALLY_INTENT";stageId:string}|{type:"INTERACT_INTENT";objectId:string}|{type:"LOCAL_MOTION";sceneId:string;x:number;y:number;seq:number};
-export type WorldCommand={type:"SCENE_LOAD";sceneId:string}|{type:"INPUT_LOCK";locked:boolean}|{type:"WORLD_CHECKPOINT_APPLY";stageId:string};
+/** Canonical exploration bridge. Presentation never owns room/progression/combat truth. */
+export type {ExplorationPort,ExplorationView,Explorer} from './bridge';
+export type {SceneId,InteractionZone,Motion,Point,WorldMap} from './model';
+export type ExplorationIntent={type:'RALLY_INTENT';ready:boolean;phaseId:string;sceneToken:string}|{type:'INTERACT_INTENT';zoneId:string;sceneToken:string}|{type:'LOCAL_MOTION';motion:import('./model').Motion};
+export type WorldCommand={type:'APPLY_VIEW';view:import('./bridge').ExplorationView}|{type:'DESTROY'};
