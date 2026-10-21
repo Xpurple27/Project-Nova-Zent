@@ -1,32 +1,49 @@
+# Verification — NOVA ZENITH Extra High2
+Date:21 October2026, UTC. Evidence distinguishes live Supabase traffic from local simulations.
 
-# Verification evidence — High 1–5
-Date: 21 October 2026 (Asia/Jakarta).
+## Executed checks
+- TypeScript, ESLint with zero warnings, all46 Node unit/integration tests, generated Edge-bundle drift check and production build: passed.
+- Playwright baseline:2 passed (320px home/offline UI, complete question→reaction→round2, lobby setup).
+- SQL lobby and combat suites passed on the connected database with rolled-back fixtures. These verify membership/RLS, capacity/classes, backend-function grants, private keys, transaction rollback after invalid HP, CAS conflict rejection, receipt replay and one turn/event.
+- Simulations1P/2P/4P reached Victory in13/10/8 rounds respectively with the shared engine. A4P CLI run with disconnect and forced Heavy reached Victory in10 rounds. These are simulations, not physical-device tests.
 
-## Completed checks
-Latest verified GitHub Actions run39485332496, commit e97eefabd56e31afcf2c4eecc153cab09727fe01:
-- npm install: success, audit reported0 vulnerabilities.
-- TypeScript: passed.
-- Node unit tests:31 passed,0 failed.
-- Next.js production build: passed.
-- Playwright: both browser tests passed, including320px overflow checks and a full action/question→boss reaction→round2 path.
-- Dependency lockfile generated and retained by the successful CI job.
+## Full live four-browser battle
+Four isolated Chromium contexts authenticated to the real Supabase project through the production frontend build. Auth used four temporary confirmed QA identities because Anonymous Sign-Ins is disabled. No Auth configuration was changed.
+Room GU6URK4, session ded58afa-2adf-4cc5-89d7-b5923b21d18d:
+- Victory on round9, boss0/5600HP, final state_version139 before teardown.
+- Database recorded214 events and182.546443s from start to finish.
+- Four final canonical snapshots matched; all four UIs displayed Victory.
+- Zero duplicate ACTION_RESOLVED groups per actor/turn; one BOSS_DEFEATED and one VICTORY.
+- One Core spawn, one Core destruction, one Cataclysm, one Barrier creation/break; two monotonic phase transitions.
+- Concurrent Mage selection admitted one claimant, then unique classes/Ready/Start succeeded.
+- Planning AFK default and math timeout occurred. Target disconnect/reconnect restored the exact reaction assignment/deadline.
+- Coordinator went offline and refreshed; battle state persisted. Stale turn input rejected.
+-320px online page had no horizontal overflow; no browser page errors. Final screenshot visually inspected.
+This establishes four browser sessions on one runner; four physical devices/diverse mobile networks were not tested.
 
-The verified run includes final floating/critical/block feedback, development performance controls, isolated tab identities, safe numeric boundaries and reconnect regression tests. Documentation-only updates do not change the verified application inputs.
+## Live reliability/security probe
+A separate real solo session submitted concurrent Start, identical action/answer requests, an Ultimate twice, and competing PUMP/GET resolvers.
+- Concurrent Start returned one session/turn.
+- Identical answer requests returned one finalized receipt/grade.
+- Last Bastion executed once; gauge consumed once to0.
+- Replaying terminal Victory preserved event sequence and outcome.
+- Authenticated client calls to the privileged loader and direct projection PATCH returned403.
+- Another authenticated user could not read the solo session.
+The probe also recovered after authoritative inactivity via the normal membership heartbeat/reconnect path. Its first API-only harness omitted heartbeats; the harness now includes them. The server correctly suspended rather than waiting on input indefinitely.
 
-Connected Supabase:
-- Migration nova_foundation_lobby applied as version20261020192046.
-- Migration nova_foreign_key_indexes applied as version20261020193646.
-- Migration nova_reconnect_projection applied as version20261020193917; reconnect regression SQL test passed.
-- supabase/tests/lobby.sql passed transactionally, with authenticated role/claims.
-- Tests cover create idempotency, key reuse rejection,4-member capacity, outsider projection/presence denial, private HP read denial, direct row-write denial, unique classes, reconnect class preservation, inactivity/grace, coordinator transfer, removing an inactive member, readiness, start and late-join rejection.
-- Fixtures were rolled back; no anonymous test users remain.
-- Security advisor reported no WARN/ERROR. Ten INFO items are expected private tables with RLS enabled and no policies: deliberate default deny.
-- Foreign-key indexes were added after the performance advisor identified missing coverage.
+## Defects fixed during verification
+Private JSON property order is no longer used to compare action intent. A suspended round now owns one stable UUID across repeated watchdog polls and reconnect. Older same-version timestamps cannot rewind the visual clock. Rune early success cancels remaining inputs without false failure telemetry. FK lifecycle handles dependent audit rows; historical input deadlines are retained.
+Earlier live-test interruptions were local-proxy routing and selector/assertion issues in the UAT script; the complete rerun above passed.
 
-## Known pending gates
-- Anonymous Sign-Ins is OFF in the connected project's Auth settings, verified in the dashboard. No authentication setting was changed.
-- Until the owner authorizes/enables anonymous sign-ins, real guest login and end-to-end multi-browser lobby tests remain blocked.
-- Sequential database tests establish function/security behavior but are not a substitute for an actual concurrent multi-device UAT.
-- Local execution environment and attached art references were unavailable.
-- No deployment, final art/audio, exploration or synchronized combat is claimed.
-- Full15-composition balance simulation and15–25-minute run timing belong to later integration, not these foundation gates.
+## Teardown and limits
+Four synthetic Auth identities were deleted; database verification confirmed0 remain. QA rooms were expired and unfinished sessions deactivated; historical QA rows remain. The capability-protected provisioning/cleanup helper was retired to410 with gateway JWT verification enabled. Temporary credentials are not retained in the repository.
+Destructive cleanup/extension operations returned expired connector request state; no extension-reinstall migration is included or claimed applied. Receipt/worker-log cleanup is scheduled; general room/session retention remains an operations follow-up.
+A CLI invocation was rejected by automatic review for unidentified PostHog telemetry. Subsequent SQL work used the Supabase connector; the rejected CLI action was not retried.
+
+## Remaining release gates/advisories
+- High: Anonymous Sign-Ins remains disabled, so new public guests cannot enter until the owner enables the provider. Existing authenticated sessions were fully tested. No Vercel production frontend deployment is claimed.
+- Medium: pilot questions need curriculum/content review; broad public-release IP/rejected-request throttling and physical-device/network diversity remain follow-ups.
+- Medium: advisor reports pg_net extension metadata in public; its functions live in net and combat backend RPCs remain service-only. Relocation requires a separate approved maintenance step.
+- Low: Auth leaked-password protection is disabled; MVP guest play has no password flow. Final art/audio remain placeholders.
+- Expected INFO:11 private tables have RLS and no user policies, implementing deliberate default deny.
+No unresolved Critical combat synchronization defect was observed in the completed runs. This is measured MVP evidence, not a claim of exhaustive concurrency or load coverage.

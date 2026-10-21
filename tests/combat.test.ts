@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {createCombat,resolveRound,resolveReaction,resolveRune,unavailableReason,isPartyWiped} from "../src/game/combat/engine";
-import {activeEffect,magnitude,putEffect} from "../src/game/combat/effects";
+import {magnitude,putEffect} from "../src/game/combat/effects";
 import {bossHp,coreHp,barrierHp,runeRequired,selectTarget,selectBossAction,applyBossIntent,updatePhase,incomingDamage} from "../src/game/boss/engine";
 import {SKILL_BY_ID,CHARACTERS} from "../src/game/config";
 import type {CombatState,CombatAction,MathPerformance,CharacterClass} from "../src/game/core/types";

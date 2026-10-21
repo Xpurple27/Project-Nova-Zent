@@ -1,0 +1,34 @@
+# NOVA ZENITH — multiplayer combat contract v1
+
+## Audit and decision
+High1–5 has a deterministic TypeScript engine and a SQL-authoritative lobby. The old blueprint reserved a second SQL resolver. Extra High2 supersedes that boundary: **the exact same pure engine runs in Supabase Edge Functions**; SQL never duplicates damage calculations. Offline QA remains available. Phaser/story are outside this milestone.
+
+## Authority and atomicity
+`private.game_sessions.combat_json` is the canonical versioned combat document. It contains the engine, immutable turn/phase IDs, locked actions, private assignments and question history. PostgreSQL supplies time and membership; an authenticated Edge handler validates intent and runs the pure reducer. A service-only RPC locks the session, checks the loaded version, and atomically commits the document, relational turn/action/assignment audit, events, safe projection and command receipt. CAS conflicts reload and recompute; no partial damage can commit. A crashed computation has no durable effect. No host privileges participate in resolution.
+
+The existing combatants/actions/assignments tables are audit mirrors, never a second calculation source. Effects remain in the canonical document. Private tables and backend RPCs deny authenticated/anon access. Only a safe projection is published. Edge authenticates each player with Auth `getUser`; privileged credentials are runtime secrets.
+
+## Lifecycle and clocks
+Lobby START freezes a unique roster. Any member can then ensure that room's single encounter exists; initialization is idempotent under the same root-row CAS. Solo uses this identical path.
+
+Planning12s (all locked may close after3s) → parallel assigned Math → atomic player resolution →4s presentation allowance → recorded boss decision and2s windup → reaction12s (+Focus), Rune18s, or direct boss action →2s turn end → expiration/next turn. Backend timing is independent of animation acknowledgments. Immediate boss death wins and cancels all further damage. All eligible players KO loses. Each phase is persisted with an absolute database-clock deadline and UUID epoch. At an exact deadline, input is late.
+
+Selection auto-locks on confirmed submission. One action per actor/turn. Server normalizes party/self targets, validates class/cost/gauge/target and reserves the action; payment occurs only on engine execution. Missing actors get failed basic with10 resource and no gauge/combo. Manual wrong/timeout still has40% power and normal basic gain20. Revived allies have no current-round action. Later hits on destroyed Core retarget boss, without single-hit overflow.
+
+Assignments start1s after creation to allow delivery; receiving late/reconnecting never extends them. Perfect is correct by half of the stored available interval. Server database load time, checked again at commit, determines elapsed time; no client elapsed time is accepted. A request that misses the commit deadline is reloaded and rejected/expired. Keys/permutations stay private; only the owner's prompt and opaque option tokens are returned. First finalized answer wins; identical retry returns existing result, changed answer rejects. Pilot bank has20 questions/difficulty and requires curriculum review before educational release.
+
+## Membership and reconnect
+Encounter HP/damage scaling never changes. Membership is frozen at start. Active means roster member, not intentionally departed, and heartbeat within60s. Living active actors are frozen at turn start; disconnect during an input window does not remove that actor or reroll an already selected boss target. Current inputs expire normally. Inactive members are skipped at subsequent turns and are excluded from targeting/AoE; normal party healing can still heal a living roster member. Rejoining restores the same HP/resources/gauge and may act from the next eligible turn, with no new slot or rescaling. All-active-KO is Defeat; no active living member with disconnected living roster suspends, checks every10s and aborts after10min. An intentional leave is sticky for this encounter.
+
+A database cron checks due work every second. It sends a short-lived unguessable capability to the worker via pg_net, never a public service key. The worker validates this capability in SQL before loading state. Crashed/lost HTTP delivery retries after5s; CAS prevents duplicate results. Failed worker operations leave the phase unchanged. Clients can also request a harmless due-state pump, but are not required for progress.
+
+## Boss/effects
+Use the unchanged centralized ruleset/formula order. Party actions resolve defense → buffs → debuffs → healing → offense priority/speed/seat. Boss intent and target are recorded before damage; a disconnect never rerolls it. Barrier eligibility is the living subset of the current turn’s frozen active roster; its threshold freezes at creation (ceil(.75n):1/2/3/3), and success can close early. Core destruction, shield break, thresholds, Rage, Cataclysm, victory and defeat emit once through the same CAS. Duration through round r expires at r's TURN_END; future Roar/Armor affect r+1/r+2. Heavy always provides one complete next player phase. Phase61%→23% emits Phase2 then Phase3 once.
+
+## Synchronization
+Realtime Postgres Changes on member-only `session_views` invalidates the client cache. GET returns a current safe snapshot, own pending assignment, and last50 ordered events. Presence is cosmetic. No critical truth uses Broadcast. The client accepts only monotonic versions, deduplicates event sequence, resyncs gaps, and polls every3s as fallback. Subscription/token refresh/network recovery re-fetches the snapshot; timers use an offset estimated from server time and monotonic browser elapsed time. Missing events are skipped on reconnect in favor of the snapshot; the battle is not replayed from the beginning. HP is never optimistic.
+
+State version changes on every commit. Independent players' same-phase inputs can safely use an older observed version; exact turn and phase epoch fence stale input. Future versions, old turns and previous-phase epochs reject explicitly. Request UUID receipts bind actor+command+payload; replay cannot spend twice. Same-answer retries with a new UUID also return the finalized grade while that assignment remains current. No correct answer or another player's selected option is returned.
+
+## Interfaces and verification
+Server reducer, persistence adapter, Edge transport and client presentation are separate modules. The Edge bundle is generated from the repository's exact engine sources; a verification script checks for drift. Production has no debug mutation command. The simulation harness injects time/IDs and exercises1–4 players, AFK, stale input, reaction disconnect and reconnect. SQL and live UAT evidence are recorded separately in VERIFICATION.md; sequential SQL alone does not establish concurrency correctness.

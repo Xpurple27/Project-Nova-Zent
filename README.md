@@ -1,54 +1,49 @@
-
 # NOVA ZENITH
-A mobile-first cooperative mathematical RPG for 1–4 players.
+Mobile-first cooperative mathematical RPG for1–4 players.
 
-This delivery covers **High 1–5**: application foundation, deterministic offline combat, Abyss Guardian, combat UI, and a server-authoritative Supabase lobby. Online combat synchronization belongs to Extra High #2 and is not implemented here.
+High1–5 and Extra High2 are implemented: deterministic shared combat engine, Abyss Guardian, offline lab, transactional lobby and server-authoritative online combat.
 
-## Run
-Node22 or later. Copy .env.example to .env.local and add your Supabase publishable key.
-Enable Anonymous Sign-Ins in Supabase Auth. Do not put a service-role or secret key in frontend configuration.
+## Local frontend
+Node22+. Copy .env.example to .env.local, configure the Supabase URL and publishable key, then:
 
-    npm install
-    npm run dev
+    npm ci
+    npm run dev -- --hostname 127.0.0.1
 
-- / — NOVA ZENITH landing page.
-- /lobby — real Supabase guest room/class/ready foundation.
-- /dev/combat — offline QA battle lab in development.
+Routes: / landing, /lobby online rooms/battle, /dev/combat offline QA. The production offline demo requires NOVA_ENABLE_OFFLINE_DEMO=1 at build/runtime; production debug mutation controls remain disabled.
+Anonymous Sign-Ins must be enabled for new guest identities. Existing Auth sessions work independently of that provider setting. Credentials and room membership are tab-scoped sessionStorage: refresh preserves them; clearing storage or changing device does not restore a lost anonymous identity.
 
-The production lab is disabled by default. Set server-side NOVA_ENABLE_OFFLINE_DEMO=1 to opt into the offline demo; production debug mutation controls remain disabled.
-This lab uses non-secret development questions, not the future secure online bank.
+## Backend
+The connected Supabase project has the migrations and nova-combat Edge Function deployed. Never replay applied migrations or reset the live database to set up a local frontend.
+For a fresh backend, apply supabase/migrations in order, configure that environment's worker URL in the watchdog migration, and deploy the generated nova-combat bundle. supabase/config.toml records its entrypoint and verify_jwt=false: the handler explicitly validates player JWTs with Auth and worker capabilities in SQL. This does not make private database operations public.
+The Edge runtime supplies its privileged credentials. No frontend service-role environment variable is needed.
+
+    npm run bundle:edge
+    npm run check:edge
+
+The bundle is generated from the exact same domain engine used by offline QA; do not hand-edit index.js. Backend API: intents START/GET/PUMP/ACTION/ANSWER/LEAVE. Clients can never submit grades, damage, HP, resource or outcome.
 
 ## Verification
 
+    npm run lint
     npm run typecheck
     npm test
-    npm run build
+    npm run check:edge
+    NOVA_ENABLE_OFFLINE_DEMO=1 npm run build
     npx playwright install chromium
-    NOVA_ENABLE_OFFLINE_DEMO=1 npm run test:e2e
+    npm run test:e2e
+    npm run simulate -- --players=4 --disconnect --heavy
 
-Build with NOVA_ENABLE_OFFLINE_DEMO=1 when testing the opt-in lab in a production server.
-GitHub Actions runs the checks and commits a generated lockfile only after all checks pass.
-
-## Supabase
-Apply the migration in supabase/migrations to a fresh project; it includes schema, constraints, RLS, lobby RPC and projection publication.
-The connected Project Nova Zent received this migration through the project connector.
-supabase/seed.sql is optional development-only seed data, not a production question bank.
-supabase/tests/lobby.sql is a rollback-based integration test, not a data migration.
-
-Guest credentials and the current room use sessionStorage. Independently opened tabs can represent separate guests; duplicated tabs may copy the same identity. Refreshing the same tab preserves membership. Clearing credentials or switching device does not restore an anonymous identity.
-Capacity counts four reserved memberships, including disconnected members. Coordinator can release an inactive slot after the60s grace period.
-START locks a ready roster and stops at STORY/AWAITING_COMBAT_INTEGRATION.
+supabase/tests/lobby.sql and combat.sql use rolled-back fixtures. Live browser UAT scripts are opt-in, require temporary synthetic Auth sessions in ignored .uat.json, and are never production endpoints. Do not put live user credentials in this file. See docs/VERIFICATION.md for actual evidence and limitations.
 
 ## Contracts
-- docs/NOVA_ZENITH_MVP_BLUEPRINT.md
-- docs/IMPLEMENTATION_STATUS.md
-- src/game/config — centralized stats and skills
-- src/game/core — types, FSM, math and audio port
-- src/game/combat and boss — OFFLINE_QA only
-- src/game/multiplayer — lobby adapter
-- src/game/assets — replaceable asset interface
+- docs/NOVA_ZENITH_MVP_BLUEPRINT.md — frozen product/rules
+- docs/MULTIPLAYER_COMBAT_ARCHITECTURE.md — authority, clocks, concurrency and recovery
+- docs/IMPLEMENTATION_STATUS.md — delivery scope
+- src/game/config — centralized balance
+- src/game/combat and boss — shared pure deterministic engine
+- src/game/multiplayer/server — secure orchestration
+- src/game/multiplayer/combat-client — transport/subscriptions
+- src/components/combat — snapshot-driven UI and offline lab
+- docs/ART_BIBLE.md / SPRITE_PIPELINE.md — supplied art direction
 
-Current art is an original placeholder. Attached art references have not yet been inspected because the authoring runtime was unavailable.
-
-## Credentials
-Use only publishable configuration in the browser. Never commit .env.local, service-role keys, secret keys, access tokens or database passwords.
+Final art/audio, exploration, story polish and progression remain excluded. Never commit credentials, .env.local, .uat.json, access tokens or database passwords.

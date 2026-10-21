@@ -1,5 +1,5 @@
 
-/** Offline QA only. Never accepts or writes an online lobby/combat snapshot. */
+/** Pure deterministic domain engine. I/O, authentication and deadlines belong to the server adapter. */
 import { BOSS, CHARACTERS, GAME, SKILL_BY_ID } from "../config";
 import type { Character, CharacterClass, CombatAction, CombatState, MathPerformance, ResolvedAction, SkillDefinition } from "../core/types";
 import { clampHp, clampResource, performanceMultiplier, roundHalfUp } from "../core/math";
@@ -15,14 +15,9 @@ export function createCombat(classes:CharacterClass[]=["WARRIOR","MAGE","THIEF",
  const basics=party.reduce((n,p)=>n+SKILL_BY_ID[CHARACTERS[p.classId].basic].base,0);
  return {mode:"OFFLINE_QA",turn:1,phase:"COMBAT_PLANNING",party,boss,partySize:party.length,resonance:boss.maxHp/(10*basics),seed:seed>>>0,effects:[],events:[],nextSeq:1,effectSeq:1,combo:0,roundSuccess:false,roundBossHpStart:boss.hp,rageBonus:0,gainThisRound:{},pending:null,dummy};
 }
-export const isPartyWiped=(s:CombatState)=>s.party.every(p=>p.hp<=0);
-export function unavailableReason(p:Character,skill:SkillDefinition):string|null {
- if(p.hp<=0)return "Character is KO";
- if(p.classId!==skill.classId)return "Wrong class";
- if(skill.ultimate&&p.ultimate<100)return "Requires 100 Ultimate";
- if(!skill.ultimate&&p.resource<skill.cost)return "Requires "+skill.cost+" "+CHARACTERS[p.classId].resourceType;
- return null;
-}
+export const isPartyWiped=(s:CombatState)=>s.party.filter(p=>p.active!==false).every(p=>p.hp<=0);
+export { unavailableReason } from "./availability";
+import { unavailableReason } from "./availability";
 export function validateAction(s:CombatState,a:CombatAction):void {
  const p=s.party.find(x=>x.id===a.actorId),k=SKILL_BY_ID[a.skillId];
  if(!p||!k)throw new Error("INVALID_ACTION");
@@ -31,6 +26,7 @@ export function validateAction(s:CombatState,a:CombatAction):void {
  if(a.origin==="AUTO"&&(a.skillId!==CHARACTERS[p.classId].basic||a.performance!=="FAILED"))throw new Error("INVALID_AUTO_ACTION");
  if(k.target==="ENEMY"&&(a.targetId!=="boss"&&!(a.targetId==="core"&&s.boss.core&&s.boss.core.hp>0)))throw new Error("INVALID_TARGET");
  if(k.target==="MAIN_ENEMY"&&a.targetId!=="boss")throw new Error("INVALID_TARGET");
+ if(a.reviveTargetId&&k.id!=="healer.divine_recovery")throw new Error("INVALID_REVIVE_SKILL");
  if(a.reviveTargetId&&!s.party.some(x=>x.id===a.reviveTargetId&&x.hp===0))throw new Error("INVALID_REVIVE_TARGET");
 }
 export function sortActions(s:CombatState,actions:CombatAction[]):CombatAction[] {
@@ -43,7 +39,7 @@ function heal(s:CombatState,p:Character,n:number,source:string):number {
  event(s,"HEAL",p.name+" recovers "+(p.hp-old),p.hp-old,source,p.id);return p.hp-old;
 }
 function hit(s:CombatState,a:CombatAction,p:Character,k:SkillDefinition):number {
- let target=a.targetId==="core"&&s.boss.core&&s.boss.core.hp>0?"core":"boss";
+ const target=a.targetId==="core"&&s.boss.core&&s.boss.core.hp>0?"core":"boss";
  const hp=target==="core"?s.boss.core!.hp:s.boss.hp,max=target==="core"?s.boss.core!.maxHp:s.boss.maxHp;
  let special=1;
  if(k.id==="thief.quick_strike"&&a.performance==="PERFECT"){special=1.35;event(s,"CRITICAL_HIT","CRITICAL — Quick Strike ×1.35",undefined,p.id,target);}
@@ -63,7 +59,7 @@ function hit(s:CombatState,a:CombatAction,p:Character,k:SkillDefinition):number 
 }
 function execute(s:CombatState,a:CombatAction):ResolvedAction {
  const p=s.party.find(x=>x.id===a.actorId)!,k=SKILL_BY_ID[a.skillId];const r=s.turn;
- if(s.boss.hp<=0)return {...a,damage:0,healing:0,canceled:true};
+ if(s.boss.hp<=0||p.hp<=0||p.active===false)return {...a,damage:0,healing:0,canceled:true};
  if(k.ultimate)p.ultimate=0;else p.resource=clampResource(p.resource-k.cost);
  event(s,"ACTION_RESOLVED",p.name+" — "+k.name+" — "+a.performance,undefined,p.id);
  let damage=0,healing=0;
@@ -93,14 +89,14 @@ function execute(s:CombatState,a:CombatAction):ResolvedAction {
 }
 export function finishRound(s:CombatState):void {
  s.pending=null;expireEffects(s);
- if(s.boss.hp<=0){s.phase="VICTORY";s.boss.core=null;event(s,"BOSS_DEFEATED","VICTORY — the seal holds, for now.");return;}
- if(isPartyWiped(s)){s.phase="DEFEAT";event(s,"PARTY_DEFEATED","DEFEAT — regroup and try another formula.");return;}
+ if(s.boss.hp<=0){s.phase="VICTORY";s.boss.core=null;event(s,"BOSS_DEFEATED","VICTORY — the seal holds, for now.");event(s,"VICTORY","The party defeated Abyss Guardian.");return;}
+ if(isPartyWiped(s)){s.phase="DEFEAT";event(s,"PARTY_DEFEATED","DEFEAT — regroup and try another formula.");event(s,"DEFEAT","The expedition has fallen.");return;}
  s.turn++;s.phase="COMBAT_PLANNING";
 }
-export function resolveRound(input:CombatState,requested:CombatAction[],rng?:()=>number):CombatState {
+export function resolvePlayerActions(input:CombatState,requested:CombatAction[]):CombatState {
  if(input.phase!=="COMBAT_PLANNING")throw new Error("INVALID_PHASE");
  const s=structuredClone(input);s.gainThisRound={};s.roundBossHpStart=s.boss.hp;s.rageBonus=0;
- const living=s.party.filter(p=>p.hp>0);
+ const living=s.party.filter(p=>p.hp>0&&p.active!==false);
  if(new Set(requested.map(a=>a.actorId)).size!==requested.length)throw new Error("DUPLICATE_ACTION");
  for(const a of requested)validateAction(s,a);
  const actions=living.map(p=>requested.find(a=>a.actorId===p.id)??{actorId:p.id,skillId:CHARACTERS[p.classId].basic,targetId:"boss",performance:"FAILED" as const,origin:"AUTO" as const});
@@ -115,10 +111,17 @@ export function resolveRound(input:CombatState,requested:CombatAction[],rng?:()=
    s.rageBonus=Math.min(10,s.rageBonus+(s.roundSuccess?3:0)+(s.roundBossHpStart-s.boss.hp>=s.boss.maxHp*.1?3:0));
    s.boss.rage=Math.min(100,s.boss.rage+s.rageBonus);
  }
- const intent=selectBossAction(s,rng);event(s,"BOSS_ACTION_SELECTED","Abyss Guardian — "+intent.skill,undefined,"boss",intent.targetId);
- applyBossIntent(s,intent);if(!s.pending)finishRound(s);return s;
+ s.phase="BOSS_ACTION";return s;
 }
-export function resolveReaction(input:CombatState,performance:MathPerformance):CombatState {
+export function decideBoss(s:CombatState,rng?:()=>number){
+ const intent=selectBossAction(s,rng);event(s,"BOSS_ACTION_SELECTED","Abyss Guardian — "+intent.skill,undefined,"boss",intent.targetId);return intent;
+}
+export function resolveRound(input:CombatState,requested:CombatAction[],rng?:()=>number):CombatState {
+ const s=resolvePlayerActions(input,requested);
+ if(s.phase!=="BOSS_ACTION")return s;
+ applyBossIntent(s,decideBoss(s,rng));if(!s.pending)finishRound(s);return s;
+}
+export function resolveReaction(input:CombatState,performance:MathPerformance,finish=true):CombatState {
  if(input.pending?.kind!=="REACTION")throw new Error("NO_PENDING_REACTION");
  const s=structuredClone(input),pending=s.pending!;
  if(pending.kind!=="REACTION")throw new Error("INVALID_PENDING");
@@ -131,14 +134,14 @@ export function resolveReaction(input:CombatState,performance:MathPerformance):C
  if(p.hp>0&&p.classId==="HEALER")heal(s,p,performance==="PERFECT"?40:performance==="SUCCESS"?20:0,p.id);
  gainUltimate(s,p,performance==="PERFECT"?5:performance==="SUCCESS"?3:0);
  event(s,"REACTION_RESOLVED",p.name+" reaction — "+performance,damage,p.id);
- settleBoss(s,pending.intent);finishRound(s);return s;
+ settleBoss(s,pending.intent);s.pending=null;if(finish)finishRound(s);return s;
 }
-export function resolveRune(input:CombatState,results:Record<string,MathPerformance>):CombatState {
+export function resolveRune(input:CombatState,results:Record<string,MathPerformance>,finish=true):CombatState {
  if(input.pending?.kind!=="RUNE")throw new Error("NO_PENDING_RUNE");
  const s=structuredClone(input),pending=s.pending!;
  if(pending.kind!=="RUNE")throw new Error("INVALID_PENDING");
  let correct=0;for(const id of pending.actorIds){if(results[id]&&results[id]!=="FAILED"){correct++;gainUltimate(s,s.party.find(p=>p.id===id)!,5);}}
  if(correct>=pending.required){s.boss.shield=0;s.boss.rage=Math.min(100,s.boss.rage+4);event(s,"BARRIER_BROKEN","Team Rune succeeded — barrier broken");}
  else event(s,"BARRIER_RUNE_FAILED","Team Rune "+correct+"/"+pending.required+" — shield remains");
- settleBoss(s,{skill:"BARRIER"});finishRound(s);return s;
+ settleBoss(s,{skill:"BARRIER"});s.pending=null;if(finish)finishRound(s);return s;
 }

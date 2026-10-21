@@ -6,7 +6,7 @@ export type CharacterStats = { maxHp: number; speed: number; resistance: number 
 export type CharacterState = "ALIVE" | "KO";
 export type Character = CharacterStats & {
   id: string; name: string; classId: CharacterClass; hp: number;
-  resource: number; ultimate: number; seat: number;
+  resource: number; ultimate: number; seat: number; active?: boolean;
 };
 export type QuestionDifficulty = "EASY" | "MEDIUM" | "HARD";
 export type QuestionCategory = "ARITHMETIC" | "ALGEBRA" | "RATIO" | "PATTERN" | "PROBABILITY" | "PERCENTAGE";
@@ -44,7 +44,7 @@ export type BossState = {
 };
 export type PendingInput = { kind: "REACTION"; intent: BossAction; actorId: string } | { kind: "RUNE"; actorIds: string[]; required: number };
 export type CombatState = {
-  mode: "OFFLINE_QA"; turn: number; phase: CombatPhase; party: Character[];
+  mode: "OFFLINE_QA" | "SERVER"; turn: number; phase: CombatPhase; party: Character[];
   boss: BossState; partySize: number; resonance: number; seed: number;
   effects: StatusEffect[]; events: CombatEvent[]; nextSeq: number; effectSeq: number;
   combo: number; roundSuccess: boolean; roundBossHpStart: number; rageBonus: number;

@@ -1,0 +1,2 @@
+import tseslint from 'typescript-eslint';
+export default tseslint.config({ignores:['supabase/functions/**','.next/**','node_modules/**']},...tseslint.configs.recommended,{rules:{'@typescript-eslint/no-unused-vars':['error',{argsIgnorePattern:'^_',varsIgnorePattern:'^_',caughtErrorsIgnorePattern:'^_'}],'@typescript-eslint/no-explicit-any':'error','@typescript-eslint/no-non-null-assertion':'off'}});

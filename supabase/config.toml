@@ -1,0 +1,5 @@
+project_id = "nova-zenith"
+[functions.nova-combat]
+verify_jwt = false
+# Entrypoint authenticates player JWTs with Auth and worker capabilities in PostgreSQL.
+entrypoint = "./functions/nova-combat/index.js"

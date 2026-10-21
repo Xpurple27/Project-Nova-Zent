@@ -1,6 +1,7 @@
 
 "use client";
 import { useCallback,useEffect,useState } from "react";
+import OnlineCombat from "../combat/OnlineCombat";
 import { CHARACTERS, GAME } from "@/game/config";
 import { CLASSES, type RoomState } from "@/game/core/types";
 import { browserSupabase,ensureGuest } from "@/lib/supabase/browser";
@@ -21,8 +22,9 @@ export default function Lobby(){
   return ()=>{mounted=false;};
  },[apply]);
  const roomId=room?.id;
+ const started=!!room&&!["LOBBY","CHARACTER_SELECT","READY"].includes(room.state);
  useEffect(()=>{
-  if(!roomId||!uid)return;
+  if(!roomId||!uid||started)return;
   const c=browserSupabase();let active=true,busy=false;
   const refresh=async()=>{if(busy||!active)return;busy=true;try{const r=await lobbyCommand("GET",{roomId});if(active)apply(r);}catch(e){if(active){setConnection("Reconnecting");setError(lobbyError(e));}}finally{busy=false;}};
   const heartbeat=async()=>{try{const r=await lobbyCommand("HEARTBEAT",{roomId});if(active){apply(r);setConnection("Online");}}catch{if(active)setConnection("Reconnecting");}};
@@ -36,7 +38,7 @@ export default function Lobby(){
   const offline=()=>setConnection("Disconnected");window.addEventListener("offline",offline);
   void refresh();
   return ()=>{active=false;clearInterval(poll);clearInterval(beat);window.removeEventListener("online",focus);window.removeEventListener("focus",focus);window.removeEventListener("offline",offline);void c.removeChannel(changes);void c.removeChannel(presence);};
- },[roomId,uid,apply]);
+ },[roomId,uid,apply,started]);
  async function send(command:LobbyCommand,payload:Record<string,unknown>={}){
   if(working)return;setWorking(true);setError("");
   try{
@@ -47,12 +49,12 @@ export default function Lobby(){
   finally{setWorking(false);}
  }
  const me=room?.players.find(p=>p.userId===uid),coordinator=me?.id===room?.coordinatorId;
- const started=room&&!["LOBBY","CHARACTER_SELECT","READY"].includes(room.state);
+ if(started&&room)return <OnlineCombat key={room.sessionId} sessionId={room.sessionId} roomId={room.id}/>;
  return <div className="lobby-page"><div className="page-heading"><div><p className="eyebrow">GATHER YOUR PARTY</p><h1>Expedition lobby<span className="accent">.</span></h1><p>Empat class unik. Satu party. Bangun kekuatan bersama.</p></div><span className="connection"><span className="status-dot"/>{connection}</span></div>
  {error&&<div role="alert" className="notice error">{error}</div>}
  {!room?<div className="entry-grid"><section className="panel"><p className="eyebrow">YOUR IDENTITY</p><h2>The adventurer behind the formula</h2><label htmlFor="nickname">Display name</label><input id="nickname" maxLength={20} minLength={2} value={nickname} onChange={e=>setNickname(e.target.value)} autoComplete="nickname"/><p className="muted">Identitas tersimpan pada tab ini. Refresh tab untuk reconnect. Tab baru yang dibuka terpisah dapat menjadi pemain berbeda.</p><button className="button primary" disabled={!uid||working||nickname.trim().length<2} onClick={()=>void send("CREATE",{nickname:nickname.trim()})}>Create expedition <span>+</span></button></section><section className="panel join-panel"><p className="eyebrow">AN INVITATION AWAITS</p><h2>Join a party</h2><label htmlFor="room-code">7-character room code</label><input id="room-code" className="code-input" maxLength={7} placeholder="X7K4P2Q" value={code} onChange={e=>setCode(normalizeRoomCode(e.target.value))} autoCapitalize="characters" autoComplete="off"/><button className="button secondary" disabled={!uid||working||!validRoomCode(code)||nickname.trim().length<2} onClick={()=>void send("JOIN",{code,nickname:nickname.trim()})}>Join expedition <span>↗</span></button><p className="muted">Room yang sudah dimulai hanya menerima reconnect anggota yang sama.</p></section></div>:
  <><section className="room-strip panel"><div><p className="eyebrow">EXPEDITION CODE</p><strong className="room-code">{room.code}</strong></div><button className="button small secondary" onClick={()=>{void navigator.clipboard.writeText(room.code).catch(()=>setError("Salin kode room yang terlihat di layar."));}}>Copy code</button><span className="muted">{room.players.length}/4 adventurers · {room.state.replaceAll("_"," ")}</span>{!started&&<button className="text-button" disabled={working} onClick={()=>void send("LEAVE")}>Leave room</button>}</section>
  <div className="party-grid">{Array.from({length:4},(_,seat)=>{const p=room.players.find(p=>p.seat===seat);return <article className={"panel player-slot "+(p?.userId===uid?"local-slot":"")} key={seat}>{p?<><div className="slot-top"><span className="eyebrow">SLOT {seat+1}{p.userId===uid?" · YOU":""}</span><span className={p.status==="INACTIVE"?"muted":"teal"}>{p.status==="INACTIVE"?"Inactive":online.includes(p.userId)||p.userId===uid?"● Online":"◌ Reconnecting"}</span></div><div className="slot-emblem" style={{color:p.classId?CHARACTERS[p.classId].color:undefined}}>{p.classId?CHARACTERS[p.classId].symbol:"?"}</div><h3>{p.nickname}</h3><p>{p.classId?CHARACTERS[p.classId].name:"Choosing a path…"}</p><div className="slot-footer"><span className={p.ready?"ready-badge":"muted"}>{p.ready?"✓ READY":"Not ready"}</span>{p.id===room.coordinatorId&&<span className="muted">Coordinator</span>}</div>{coordinator&&p.status==="INACTIVE"&&!started&&<button className="text-button" disabled={working} onClick={()=>void send("REMOVE_INACTIVE",{playerId:p.id})}>Release inactive slot</button>}</>:<><p className="eyebrow">SLOT {seat+1}</p><div className="slot-emblem muted">+</div><h3 className="muted">Awaiting adventurer</h3><p className="muted">Share your room code.</p></>}</article>;})}</div>
- {started?<section className="notice"><h2>Party locked. Expedition reserved.</h2><p>Roster tersimpan di server. Sinkronisasi combat multiplayer akan dihubungkan pada Extra High #2; tombol Start ini belum menjalankan pertarungan online.</p></section>:<section className="panel selection-panel"><div className="section-title"><div><p className="eyebrow">YOUR PATH</p><h2>Choose a class</h2></div><p>Perubahan class membatalkan Ready seluruh party.</p></div><div className="class-picks">{CLASSES.map(id=>{const c=CHARACTERS[id],owner=room.players.find(p=>p.classId===id),taken=!!owner&&owner.id!==me?.id;return <button key={id} className={"class-pick "+(me?.classId===id?"selected":"")} disabled={working||taken} onClick={()=>void send("SELECT_CLASS",{classId:id})} style={{"--class-color":c.color} as React.CSSProperties} aria-pressed={me?.classId===id}><span className="pick-symbol">{c.symbol}</span><strong>{c.name}</strong><small>{taken?"Taken by "+owner?.nickname:c.maxHp+" HP · "+c.resourceType}</small></button>;})}</div><div className="ready-actions"><button className="button secondary" disabled={working||!me?.classId} onClick={()=>void send("SET_READY",{ready:!me?.ready})}>{me?.ready?"Cancel ready":"Ready for expedition"}</button>{coordinator&&<button className="button primary" disabled={working||room.state!=="READY"} onClick={()=>void send("START")}>Start expedition <span>↗</span></button>}<p className="muted">Pemain 1–4 didukung. Coordinator mengirim intent; server memvalidasi seluruh roster.</p></div></section>}</>}
+ {<section className="panel selection-panel"><div className="section-title"><div><p className="eyebrow">YOUR PATH</p><h2>Choose a class</h2></div><p>Perubahan class membatalkan Ready seluruh party.</p></div><div className="class-picks">{CLASSES.map(id=>{const c=CHARACTERS[id],owner=room.players.find(p=>p.classId===id),taken=!!owner&&owner.id!==me?.id;return <button key={id} className={"class-pick "+(me?.classId===id?"selected":"")} disabled={working||taken} onClick={()=>void send("SELECT_CLASS",{classId:id})} style={{"--class-color":c.color} as React.CSSProperties} aria-pressed={me?.classId===id}><span className="pick-symbol">{c.symbol}</span><strong>{c.name}</strong><small>{taken?"Taken by "+owner?.nickname:c.maxHp+" HP · "+c.resourceType}</small></button>;})}</div><div className="ready-actions"><button className="button secondary" disabled={working||!me?.classId} onClick={()=>void send("SET_READY",{ready:!me?.ready})}>{me?.ready?"Cancel ready":"Ready for expedition"}</button>{coordinator&&<button className="button primary" disabled={working||room.state!=="READY"} onClick={()=>void send("START")}>Start expedition <span>↗</span></button>}<p className="muted">Pemain 1–4 didukung. Coordinator mengirim intent; server memvalidasi seluruh roster.</p></div></section>}</>}
  </div>;
 }

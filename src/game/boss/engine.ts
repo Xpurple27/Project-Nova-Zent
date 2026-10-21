@@ -21,7 +21,7 @@ export function updatePhase(s:CombatState):void {
  while(s.boss.phase<next){s.boss.phase=(s.boss.phase+1) as BossPhase;event(s,"BOSS_PHASE_CHANGED",s.boss.phase===2?"ENRAGED — Phase 2":"DESPERATION — Phase 3");}
 }
 export function selectTarget(s:CombatState,rng:()=>number=()=>random(s)):string {
- const living=s.party.filter(p=>p.hp>0);if(!living.length)throw new Error("NO_TARGET");
+ const living=s.party.filter(p=>p.hp>0&&p.active!==false);if(!living.length)throw new Error("NO_TARGET");
  const warrior=living.find(p=>p.classId==="WARRIOR");
  const provoke=warrior?magnitude(s,"PROVOKE",warrior.id):0;
  const redirect=warrior?magnitude(s,"REDIRECT",warrior.id):0;
@@ -76,11 +76,11 @@ export function applyBossIntent(s:CombatState,intent:BossAction):void {
    if(intent.skill==="SPEAR")b.lastSpearRound=s.turn;
    s.pending={kind:"REACTION",intent,actorId:intent.targetId!};s.phase="DEFENSIVE_REACTION";return;
  }
- if(intent.skill==="ROAR"){for(const p of s.party.filter(p=>p.hp>0))putEffect(s,"ROAR","boss",p.id,.15,s.turn+2,s.turn+1,true,true);b.lastUtility="ROAR";event(s,"EFFECT_APPLIED","Dark Roar — output −15% for two rounds");}
+ if(intent.skill==="ROAR"){for(const p of s.party.filter(p=>p.hp>0&&p.active!==false))putEffect(s,"ROAR","boss",p.id,.15,s.turn+2,s.turn+1,true,true);b.lastUtility="ROAR";event(s,"EFFECT_APPLIED","Dark Roar — output −15% for two rounds");}
  if(intent.skill==="ARMOR"){putEffect(s,"ARMOR","boss","boss",.3,s.turn+2,s.turn+1);b.lastUtility="ARMOR";event(s,"EFFECT_APPLIED","Demon Armor — damage received −30%");}
  if(intent.skill==="BARRIER"){
    b.shield=barrierHp(s.partySize);b.barrierUsed=true;
-   const ids=s.party.filter(p=>p.hp>0).map(p=>p.id);
+   const ids=s.party.filter(p=>p.hp>0&&p.active!==false).map(p=>p.id);
    s.pending={kind:"RUNE",actorIds:ids,required:runeRequired(ids.length)};s.phase="MATH_CHALLENGE";
    event(s,"BARRIER_CREATED","Abyss Barrier — solve the team rune",b.shield);return;
  }
@@ -91,7 +91,7 @@ export function applyBossIntent(s:CombatState,intent:BossAction):void {
  }
  if(intent.skill==="WAVE"||intent.skill==="CATACLYSM"){
    const heavy=(intent.skill==="CATACLYSM"&&b.core?.hp===0)?0.4:1;
-   for(const p of s.party.filter(p=>p.hp>0))hurt(s,p,incomingDamage(s,p,intent.skill==="WAVE"?BOSS.wave:BOSS.cataclysm,null,heavy));
+   for(const p of s.party.filter(p=>p.hp>0&&p.active!==false))hurt(s,p,incomingDamage(s,p,intent.skill==="WAVE"?BOSS.wave:BOSS.cataclysm,null,heavy));
    consume(s,"FROST","boss");
    if(intent.skill==="CATACLYSM"){b.rage=0;b.heavy="NONE";b.core=null;b.normalSinceHeavy=0;event(s,"CATACLYSM_RESOLVED","Infernal Cataclysm resolved");}
  }

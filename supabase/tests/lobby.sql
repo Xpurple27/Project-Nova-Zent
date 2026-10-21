@@ -51,6 +51,7 @@ begin
  if not exists(select 1 from jsonb_array_elements(room->'players') p where p->>'userId'=users[2]::text and p->>'status'='ACTIVE' and p->>'classId'='MAGE') then raise exception 'TEST_FAILED: stale inactive reconnect projection';end if;
  -- Simulate a missing coordinator heartbeat, then return to an authenticated member.
  execute 'reset role';
+ update public.room_players set joined_at=clock_timestamp()+seat_index*interval '1 millisecond' where room_id=rid;
  update public.room_players set last_seen_at=clock_timestamp()-interval '61 seconds' where room_id=rid and auth_user_id=users[1];
  execute 'set local role authenticated';
  room:=public.nz_lobby_v1('GET',jsonb_build_object('roomId',rid),gen_random_uuid());

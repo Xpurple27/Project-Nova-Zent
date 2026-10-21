@@ -5,19 +5,16 @@ Canonical name: NOVA ZENITH. Contract: nz.v1. Ruleset: nz.v1.0.
 This repository records the implementation contract from the project conversation.
 The detailed High 1–5 prompts were received as text on 21 October 2026.
 
-## Amendment: delivery boundary for High 1–5
-The owner explicitly requests a deterministic TypeScript OFFLINE engine and playable local boss UI before networked combat.
-Accordingly, src/game/combat and boss are an OFFLINE_QA implementation only. They cannot accept an online room snapshot or write gameplay state to Supabase.
-The production online combat authority remains reserved for Extra High #2: transactional server resolution, server assignments/deadlines, secure grading, and reconnect.
-Do not publish local math grades/damage as online results. The SQL schema is a foundation, not a finished combat RPC.
-A future server implementation must use the same versioned configuration and golden vectors; drift is a blocking contract error.
+## Amendment: Extra High #2 authority boundary
+The owner's Extra High #2 prompt supersedes the former offline-only delivery boundary. The same TypeScript engine now runs in both offline QA and the authenticated Supabase Edge resolver. PostgreSQL owns canonical documents, time, CAS/row locks, receipts, relational audit and safe Realtime projections. There is no second SQL damage calculator and no browser/host authority.
+The detailed implementation contract is docs/MULTIPLAYER_COMBAT_ARCHITECTURE.md. Its turn/phase UUID, deadline, active-roster and reconnect semantics are frozen. src/game/multiplayer/server contains the server orchestration; generated Edge bundles must pass check:edge.
 
 ## A. Architecture
 Next.js/React serve UI, Supabase Auth identifies guests, PostgreSQL owns lobby mutations, Realtime distributes sanitized snapshots and cosmetic presence.
-Phaser is a future renderer. Vercel is frontend hosting. No host browser is a game server.
+Phaser is a future renderer. Vercel is frontend hosting. Supabase Edge Functions run the shared pure engine; one service-only SQL commit persists each mutation atomically. No host browser is a game server.
 
 ## B. State
-Persistent: room membership, class, readiness, session state, locked roster; future combat state and assignments.
+Persistent: room membership, class, readiness, session state, locked roster; combat state, actions, private assignments and event history.
 Ephemeral: movement, direction, animation, presence.
 Visual only: camera, interpolation, effects, floating text.
 One gameplay FSM lives on private.game_sessions; public.session_views is a projection.
@@ -27,13 +24,13 @@ LOBBY → CHARACTER_SELECT → READY → STORY → EXPLORATION → ENCOUNTER_STA
 Combat: TURN_START → COMBAT_PLANNING → MATH_CHALLENGE → LOCK_ACTION → COMBAT_RESOLUTION → BOSS_ACTION → optional DEFENSIVE_REACTION or TEAM_RUNE → TURN_END.
 Terminal/branch states: VICTORY, DEFEAT, ENDING, COMPLETED, SUSPENDED, ABORTED.
 See src/game/core/fsm.ts for the transition graph, including context-sensitive MATH_CHALLENGE exits.
-High 5 START intentionally stops at STORY/AWAITING_COMBAT_INTEGRATION.
+START freezes the roster at STORY; the scheduled worker or any member then ensures the single encounter exists. STORY is only a durable integration checkpoint in this milestone.
 
 ## D. Combat timing
 Planning 12s (minimum early close 3s). Questions Easy 12s, Medium 18s, Hard 25s.
 Blessing +3s for next round's main action assignments; not retroactive.
 Reaction Easy 12s plus Focus time. Rune Medium 18s, no Blessing.
-Online party playback 4s, boss windup 2s, turn-end 2s. These online clocks are NOT implemented in High 1–5.
+Online party playback 4s, boss windup 2s, turn-end 2s. These clocks are implemented by the server authority reducer and independent deadline watchdog.
 Offline UI serializes party questions for QA; this is not the future multiplayer UX.
 
 ## E. Action resolution
@@ -52,7 +49,7 @@ Server assignment has immutable question revision, option permutation, owner, co
 Online payload never contains answers. One submitted answer; no reroll or timer reset on reconnect.
 Correct at elapsed ≤50% available time: PERFECT (1.25); other correct before deadline SUCCESS (1.00); wrong/timeout FAILED (.40).
 At the deadline is late. Client timestamps are untrusted.
-Current development fixtures are deliberately non-secret and only power the opt-in offline simulator. They are not the initial production bank of 60.
+Current development fixtures are deliberately non-secret and only power the opt-in offline simulator. The private pilot bank now has 20 questions per difficulty; curriculum approval remains a release gate.
 
 ## G. Formulas
 Use nonnegative half-up rounding once at the end: floor(x+.5).
@@ -108,13 +105,13 @@ All players must be active, class selected, Ready. Class changes/join/leave canc
 No new members after START, same-identity reconnect remains allowed.
 Request receipt unique(user,request UUID); same payload replays result, changed payload rejects.
 Capacity uses reserved non-LEFT seats so disconnect is not a way to exceed four.
-No online combat, math submissions, turn resolution or combat deadlines in this stage.
+Online combat, assignments, grading, deadlines and recovery are implemented in Extra High #2; see its architecture contract.
 
 ## K. Schema
 public: rooms, room_players (own row read), session_views (member projection).
 private: rulesets, game_sessions, combatants, combat_turns, turn_actions, questions, challenge_assignments, combat_effects, combat_events, command_receipts.
-See migrations for exact fields, checks, indexes and keys. Combat-related tables deliberately have no player-write RPC yet.
-Future cross-session combat FK and resolver validation are required before enabling combat mutations.
+See migrations for exact fields, checks, indexes and keys. Combat tables have no player-write RPC. Backend-only load/bank/commit functions are executable solely by service_role.
+The canonical document is validated by the authenticated server; root-row CAS, session membership, audit FKs and unique turn/action/assignment/event constraints guard commits.
 
 ## L. Security
 Default deny direct client mutation. Question keys and game state remain private.
@@ -146,7 +143,7 @@ Replaceable manifest with semantic animation names. Current original SVG/emblem 
 Character animations: idle/walk/attack or cast; class shield/heal/dodge; hurt/ko.
 Boss: idle/attack/special/aoe/charge/shield/hurt/rage/death.
 Impact markers never apply damage.
-The two attached art references remain unread because local runtime is unavailable; no claim of compliance with their pixel/atlas requirements.
+The supplied art references are now recorded in ART_BIBLE.md and SPRITE_PIPELINE.md. Final exported assets remain out of this milestone.
 
 ## Q. Cutscene
 Data-driven timeline contract only. id/version/scene/duration/events(atMs,duration,type,payload).
@@ -155,8 +152,8 @@ No prerecorded cinematic required or implemented.
 
 ## R. Analytics
 Structured offline events record actor, turn, target, damage/heal, effects, phases, Rage and outcome.
-Online canonical telemetry must originate at future server resolver. Cosmetic/client telemetry is untrusted.
-Do not record unnecessary identity data. Raw sessions/events30d; receipts7d; cleanup not yet scheduled.
+Online canonical telemetry originates at the server resolver and its private event/assignment audit. Cosmetic/client telemetry is untrusted.
+Do not record unnecessary identity data. Raw sessions/events30d; receipts7d; receipt and worker-log cleanup is scheduled; room/session retention is an operations follow-up.
 
 ## S. Recovery
 Retry transport with same request UUID. Stale phase refreshes snapshot. Expired question never resets timer.
@@ -168,15 +165,15 @@ Backend outage and lost anonymous credentials are not silently recoverable.
 Node test runner via tsx covers pure math/FSM, classes, ordering, effects, revive, combo, seeded threat, phases, barrier, heavy sequence and reactions.
 Playwright covers 320px layouts and actual offline question→reaction→next-round path.
 Supabase SQL integration tests run transactionally with rolled-back fixtures and simulated authenticated claims.
-Real concurrent-device lobby UAT and full balance simulation remain separate release gates; do not claim them from sequential SQL tests.
+A real four-browser-context online boss battle and separate simulated party runs are recorded in VERIFICATION.md. Physical-device/network diversity and full balance analysis remain separate release gates.
 
 ## U. Delivery
 High1 foundations → High2 offline player engine → High3 boss → High4 combat UI → High5 lobby.
-ExtraHigh2: online authoritative combat, secure questions, deadline watchdog, event synchronization.
+ExtraHigh2 implements online authoritative combat, secure questions, deadline watchdog and event synchronization.
 No crafting/PvP/equipment/guild/gacha/marketplace/pets/open world/account progression.
 
 ## V. Risks
-Critical: duplicate resolution and leaked question keys when future online combat is introduced.
+Critical: duplicate resolution and leaked question keys when online resolver or projection contracts are changed.
 High: balancing of solo classes/Ultimate, identity loss, latency, RLS/concurrency, final art mismatch.
 Mitigate with golden vectors, immutable versions, RPC locks/constraints, opt-in offline boundary and measured UAT.
 
@@ -186,7 +183,7 @@ UI internals and placeholder presentation may change within the asset and access
 The owner's High1–5 offline delivery amendment above is explicit; it does not authorize client-authoritative online combat.
 
 ## X. Open decisions
-Final art export/atlas details require attached art references.
+Final sprite dimensions, frame counts and atlas exports require production artwork.
 Production question bank requires target curriculum/age.
 Final licensed audio/art sources are not selected.
 Infrastructure capacity, concurrent lobby UAT and balance targets require measured evidence.

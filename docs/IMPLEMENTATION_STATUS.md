@@ -1,31 +1,13 @@
+# NOVA ZENITH delivery status
 
-# High 1–5 delivery status
-The canonical name in application/config/docs is NOVA ZENITH.
+High1–5 remains intact. Extra High2 adds server-authoritative combat for1–4 players using the existing deterministic TypeScript engine.
 
-## Implemented source
-- High1: Next.js/TypeScript/Tailwind app, centralized configuration, domain types, FSM, pure math, Supabase boundaries, schema/RLS, development fixtures and tests.
-- High2: deterministic, immutable offline party resolver, all sixteen skills, costs, effects, combo, Ultimate, KO and revive.
-- High3: boss cycle, weighted seeded threat, phases, cooldown, barrier/Rune, Rage, full-turn Core telegraph, Cataclysm and class reactions.
-- High4: responsive offline combat UI, questions, party plans, targets, effects, event feedback/log, mute/hooks, dev-only debug controls.
-- High5: anonymous guest lobby, transactional room/class/ready/start, projections, presence, polling, grace/reconnect and coordinator transfer.
+Implemented: unique encounter/turn IDs, parallel planning, locked validated actions, private shuffled question assignments, server grading, deadlines/defaults, atomic CAS/row-lock commits, ordered durable events, boss decisions/reactions/Rune/Core/Heavy, terminal outcomes, monotonic client snapshots, replay deduplication, reconnect and independent cron recovery. The old STORY integration placeholder now starts the authoritative encounter.
 
-## Explicitly excluded
-Online combat synchronization/resolver/deadlines, final bank60, Phaser exploration, story/cinematics, final graphics/audio, progression.
-START locks the party and waits at STORY; it does not pretend to start networked battle.
+Offline QA and its debug panel remain available. The CLI simulation supports1–4 players, timeout advancement, disconnect/reconnect and Heavy; its test store exposes development-only state editing. No production debug mutation command exists.
 
-## Verification
-See GitHub Actions for the actual commit's typecheck, unit tests, production build and browser tests.
-Database verification is performed against the connected project with transaction rollback fixtures.
-Do not label a gate passed without a successful result for that gate.
+Supabase migrations and nova-combat Edge bundle are deployed. The frontend source is in this repository; no Vercel production deployment is claimed. The pilot question bank has20 questions per difficulty and still requires educational review.
 
-## Environment and assets
-Local execution environment was unavailable during authoring; files were prepared through the connected GitHub API.
-Attached GAME_ART_BIBLE and sprite pipeline could not be read. Manifest-compatible placeholders are used.
-Supabase anonymous sign-ins must be enabled in the project's Auth settings.
-The production offline lab is opt-in using server environment NOVA_ENABLE_OFFLINE_DEMO=1.
-Normal production builds return404 for /dev/combat; debug mutation controls are never rendered in production.
+The full four-browser UAT reached one shared Victory in9 rounds. See VERIFICATION.md for evidence, exact gates, security advisories and remaining environment prerequisites. New guest login still depends on the project's Anonymous Sign-Ins setting; four temporary confirmed QA identities were used without changing Auth configuration.
 
-## Verified gate summary
-CI run39485332496 passed TypeScript,31 unit tests, production build and2 browser tests.
-SQL integration/regression tests passed against Supabase and rolled back fixtures.
-Anonymous Sign-Ins remains OFF; live guest/multi-device lobby acceptance is pending activation and UAT.
+Supplied art documents have been read and normalized to NOVA ZENITH. Production sprite exports/audio, exploration, cinematics, progression and other excluded features are not implemented.
