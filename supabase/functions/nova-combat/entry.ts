@@ -19,7 +19,7 @@ Deno.serve(async req=>{
  try{
   const raw=await limitedBody(req);
   const body=JSON.parse(raw);sessionId=body.sessionId;
-  if(typeof sessionId!=='string'||!/[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}/i.test(sessionId))throw new Error('INVALID_SESSION');
+  if(typeof sessionId!=='string'||!/^\[?([\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12})\]?$/i.test(sessionId))throw new Error('INVALID_SESSION');
   let uid=null,token=null,intent,requestId=null;
   if(body.worker===true){
    if(typeof body.token!=='string'||body.token.length!==36)throw new Error('INVALID_WORKER_CAPABILITY');
@@ -30,7 +30,7 @@ Deno.serve(async req=>{
    const {data,error}=await db.auth.getUser(bearer);if(error||!data.user)throw new Error('UNAUTHENTICATED');uid=data.user.id;if(!requestBudget.allow(uid,Date.now()))throw new Error('RATE_LIMITED');
    intent=parseIntent(body.intent);
    if(!['GET','START','PUMP'].includes(intent.kind)){
-    if(typeof body.requestId!=='string'||!/[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}/i.test(body.requestId))throw new Error('INVALID_REQUEST_ID');requestId=body.requestId;
+    if(typeof body.requestId!=='string'||!/^\[?([\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12})\]?$/i.test(body.requestId))throw new Error('INVALID_REQUEST_ID');requestId=body.requestId;
    }
   }
   const result=await execute(persistence,sessionId,uid,intent,requestId,token);
