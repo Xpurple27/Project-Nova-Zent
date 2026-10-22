@@ -31,5 +31,5 @@ export type BossState={id:"boss";name:string;hp:number;maxHp:number;phase:BossPh
 export type PendingInput={kind:"REACTION";intent:BossAction;actorId:string}|{kind:"RUNE";actorIds:string[];required:number};
 export type CombatState={enemyId?:EnemyId;mode:"OFFLINE_QA"|"SERVER";turn:number;phase:CombatPhase;party:Character[];boss:BossState;partySize:number;resonance:number;seed:number;effects:StatusEffect[];events:CombatEvent[];nextSeq:number;effectSeq:number;combo:number;roundSuccess:boolean;roundBossHpStart:number;rageBonus:number;gainThisRound:Record<string,number>;pending:PendingInput|null;dummy:boolean};
 export type Combat=CombatState;export type ConnectionStatus="ONLINE"|"RECONNECTING"|"DISCONNECTED"|"INACTIVE";
-export type RoomPlayer={id:string;userId:string;nickname:string;classId:CharacterClass|null;ready:boolean;status:"ACTIVE"|"INACTIVE"|"LEFT";seat:number;lastSeenAt:string};
+export type RoomPlayer={id:string;userId:string;nickname:string;classId:CharacterClass|null;schoolLevel?:SchoolLevel|null;ready:boolean;status:"ACTIVE"|"INACTIVE"|"LEFT";seat:number;lastSeenAt:string};
 export type RoomState={id:string;sessionId:string;code:string;coordinatorId:string|null;schoolLevel?:SchoolLevel;state:GameState;version:string;players:RoomPlayer[];expiresAt:string;serverNow:string};
