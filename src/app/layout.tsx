@@ -2,6 +2,7 @@ import type { Viewport, Metadata } from "next";
 import AudioProvider from "@/components/audio/AudioProvider";
 import Link from "next/link";
 import "./globals.css";
+import "./math.css";
 export const viewport:Viewport={width:"device-width",initialScale:1,viewportFit:"cover"};
 export const metadata:Metadata={title:"NOVA ZENITH — Arcane Formula",description:"A cooperative mathematical RPG. Four paths. One seal. Your formula shapes the battle."};
 export default function RootLayout({children}:{children:React.ReactNode}){
