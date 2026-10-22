@@ -12,6 +12,8 @@ import ActorSprite from '../presentation/ActorSprite';
 import ActionReadout from '../presentation/ActionReadout';
 import {useCombatPlayback} from '../presentation/useCombatPlayback';
 import OnlineWorld from '../exploration/OnlineWorld';
+import EncounterConclusion from '../presentation/EncounterConclusion';
+import {createConclusion,type EncounterConclusion as Conclusion} from '@/game/presentation/conclusion';
 import {Battlefield,Bar} from './Battlefield';
 import OnlineQuestion from './OnlineQuestion';
 function ActionPicker({actor,snapshot,working,onLock}:{actor:Character;snapshot:CombatSnapshot;working:boolean;onLock:(skillId:string,targetId:string,reviveTargetId?:string)=>void}){
@@ -21,6 +23,7 @@ function ActionPicker({actor,snapshot,working,onLock}:{actor:Character;snapshot:
 }
 export default function OnlineCombat({sessionId,roomId}:{sessionId:string;roomId:string}){
  const [snapshot,setSnapshot]=useState<CombatSnapshot|null>(null),[connection,setConnection]=useState('Synchronizing'),[error,setError]=useState(''),[working,setWorking]=useState(false),[now,setNow]=useState(0);
+ const [conclusion,setConclusion]=useState<Conclusion|null>(null);
  const snapshotRef=useRef<CombatSnapshot|null>(null),clock=useRef({server:0,mono:0}),cursor=useRef(new EventCursor()),sending=useRef(false);
  const playback=useCombatPlayback(sessionId),shown=playback.event;
  const audio=useGameAudio(),previousUltimate=useRef<number|null>(null);const refresh=useRef<()=>Promise<void>>(async()=>{});
@@ -28,12 +31,15 @@ export default function OnlineCombat({sessionId,roomId}:{sessionId:string;roomId
  const accept=useCallback((next:CombatSnapshot,rtt=0)=>{
   if(!newerSnapshot(snapshotRef.current,next))return;
   const playback=cursor.current.consume(next);enqueue(playback.events);
+  const old=snapshotRef.current;
+  if(!document.hidden&&old&&!['EXPLORATION','STORY','ENDING','COMPLETED'].includes(old.phase)){const finish=createConclusion(old,next,playback.events,performance.now());if(finish)setConclusion(finish);}
+  if(next.assignment&&next.assignment.performance===null||next.phase==='COMBAT_PLANNING'&&old&&['EXPLORATION','STORY','ENDING','COMPLETED'].includes(old.phase))setConclusion(null);
   snapshotRef.current=next;clock.current={server:next.serverNow+rtt/2,mono:performance.now()};setNow(next.serverNow+rtt/2);setSnapshot(next);setError('');
  },[enqueue]);
  useEffect(()=>{
   const sync=connectCombat(sessionId,roomId,accept,setConnection,e=>setError(e instanceof Error?e.message:'Connection unavailable'));refresh.current=sync.refresh;
   const time=setInterval(()=>setNow(clock.current.server+performance.now()-clock.current.mono),200);
-  const visibility=()=>{playback.reset();cursor.current=new EventCursor();if(!document.hidden)void sync.refresh();};
+  const visibility=()=>{setConclusion(null);playback.reset();cursor.current=new EventCursor();if(!document.hidden)void sync.refresh();};
   document.addEventListener('visibilitychange',visibility);
   return()=>{sync.close();clearInterval(time);playback.reset();document.removeEventListener('visibilitychange',visibility);};
  },[sessionId,roomId,accept,playback.reset]);
@@ -46,6 +52,7 @@ export default function OnlineCombat({sessionId,roomId}:{sessionId:string;roomId
   finally{sending.current=false;setWorking(false);}
  }
  if(!snapshot)return <div className="combat-page"><h1>Synchronizing expedition…</h1><p role="status">{connection}</p>{error&&<p role="alert">{error}</p>}<Link href="/lobby">Return to lobby</Link></div>;
+ if(conclusion)return <EncounterConclusion key={conclusion.key} value={conclusion} onDone={()=>setConclusion(null)}/>;
  if(snapshot.campaign&&['EXPLORATION','STORY','ENDING','COMPLETED'].includes(snapshot.phase))return <><OnlineWorld snapshot={snapshot} now={now} working={working} error={error} connection={connection} onIntent={intent=>void send(intent)}/>{snapshot.phase==='ENDING'&&playback.beat&&<div className="ending-action-recap"><p className="eyebrow">THE FINAL FORMULA</p><ActionReadout beat={playback.beat} history={playback.history} party={snapshot.party} enemy={snapshot.boss.name}/></div>}</>;
  const actor=snapshot.party.find(p=>p.id===snapshot.myActorId),terminal=['VICTORY','DEFEAT','ABORTED'].includes(snapshot.phase),left=snapshot.deadline===null?null:Math.max(0,snapshot.deadline-now);
  const fence={turnId:snapshot.turnId,phaseId:snapshot.phaseId,version:snapshot.version};const question=snapshot.assignment;

@@ -1,3 +1,5 @@
+> Current runtime: [PAINTED_CHIBI_PASS.md](PAINTED_CHIBI_PASS.md) and [SPRITE_PIPELINE.md](SPRITE_PIPELINE.md). The user explicitly approved chibi artwork, replacing the earlier non-chibi vector presentation. Class cards, portraits, combat and walking now use the same painted chibi identity source. Five painted backgrounds and three illustrated enemies are integrated. Earlier sections below retain the identity/history, not the obsolete renderer requirement.
+
 PROJECT NOVA ZENITH
 
 ART STYLE:
@@ -6,7 +8,7 @@ clean silhouette
 mobile-readable
 slightly anime-inspired
 not photorealistic
-not chibi
+chibi in playable scenes (user revision22October2026)
 
 CAMERA:
 3/4 top-down exploration
@@ -15,7 +17,7 @@ COMBAT:
 side / 3-quarter view
 
 CHARACTER PROPORTION:
-approximately 5.5 heads tall
+approximately2.7–3 heads tall for playable chibi; adult master illustrations retained as identity references
 
 OUTLINE:
 medium, readable at small size
@@ -53,7 +55,7 @@ dark stone
 crimson energy
 ancient rune motif
 
-## Implemented identity pass — 21 October 2026
+## Historical identity pass — 21 October 2026
 
 The original class IDs and lore are unchanged. These are presentation epithets, not new classes or player names.
 

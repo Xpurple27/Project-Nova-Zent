@@ -13,11 +13,14 @@ import {useCombatPlayback} from '../presentation/useCombatPlayback';
 import { Battlefield, Bar } from "./Battlefield";
 import MathChallenge from "./MathChallenge";
 import DebugPanel from "./DebugPanel";
+import EncounterConclusion from '../presentation/EncounterConclusion';
+import {createConclusion,type EncounterConclusion as Conclusion} from '@/game/presentation/conclusion';
 type Task={actorId:string;question:DevelopmentQuestion;durationMs:number};
 type Plan=Record<string,{skillId:string;targetId:string}>;
 function initialPlans(s:CombatState):Plan{return Object.fromEntries(s.party.map(p=>[p.id,{skillId:CHARACTERS[p.classId].basic,targetId:"boss"}]));}
 export default function CombatLab({debug}:{debug:boolean}){
  const [state,setState]=useState(()=>createCombat());
+ const [conclusion,setConclusion]=useState<Conclusion|null>(null);
  const [roster,setRoster]=useState<CharacterClass[]>([...CLASSES]);
  const [plans,setPlans]=useState<Plan>(()=>initialPlans(state));
  const [actorId,setActorId]=useState(state.party[0].id);
@@ -28,11 +31,11 @@ export default function CombatLab({debug}:{debug:boolean}){
  const playback=useCombatPlayback(audioRun.current),shown=playback.event;
  const enqueue=playback.enqueue;
  const timeout=useRef<ReturnType<typeof setTimeout>|null>(null),seen=useRef(0);
- useEffect(()=>{audio?.music(state.phase==='VICTORY'?'victory':state.phase==='DEFEAT'?'defeat':'boss-combat');},[audio,state.phase]);
+ useEffect(()=>{if(conclusion)return;audio?.music(state.phase==='VICTORY'?'victory':state.phase==='DEFEAT'?'defeat':'boss-combat');},[audio,state.phase,conclusion]);
  useEffect(()=>()=>{if(timeout.current)clearTimeout(timeout.current);},[]);
  useEffect(()=>{const events=state.events.filter(e=>e.seq>seen.current);if(events.length){seen.current=events.at(-1)!.seq;enqueue(events);}},[state.events,enqueue]);
- function apply(next:CombatState){setState(next);setPlans(initialPlans(next));setTasks([]);setIndex(0);setResults({});setFeedback(null);}
- function restart(){audioRun.current='offline-'+crypto.randomUUID();if(timeout.current)clearTimeout(timeout.current);seen.current=0;playback.reset();const next=createCombat(roster);apply(next);setActorId(next.party[0].id);setError("");}
+ function apply(next:CombatState){const finish=createConclusion(state,next,next.events.filter(e=>e.seq>(state.events.at(-1)?.seq??0)),performance.now());if(finish)setConclusion(finish);setState(next);setPlans(initialPlans(next));setTasks([]);setIndex(0);setResults({});setFeedback(null);}
+ function restart(){setConclusion(null);audioRun.current='offline-'+crypto.randomUUID();if(timeout.current)clearTimeout(timeout.current);seen.current=0;playback.reset();const next=createCombat(roster);apply(next);setActorId(next.party[0].id);setError("");}
  const actor=state.party.find(p=>p.id===actorId)??state.party[0];
  const task=tasks[index],taskActor=state.party.find(p=>p.id===task?.actorId);
  function start(){
@@ -66,6 +69,7 @@ export default function CombatLab({debug}:{debug:boolean}){
  const pendingActorId=state.pending?.kind==="REACTION"?state.pending.actorId:null;
  const pendingActor=state.party.find(p=>p.id===pendingActorId);
  const terminal=state.phase==="VICTORY"||state.phase==="DEFEAT";
+ if(conclusion)return <EncounterConclusion key={conclusion.key} value={conclusion} onDone={()=>setConclusion(null)}/>;
  return <div className="combat-page"><div className="combat-heading"><div><p className="eyebrow">ARCANE BATTLE LAB · OFFLINE</p><h1>The Abyss Guardian</h1><p className="muted">Local simulation · no online progress or rewards</p></div><div className="actions"><span className="round-pill">ROUND {state.turn}</span></div></div>
  <details className="roster-settings panel"><summary>Party setup · {state.partySize} players · seed 12345</summary><div className="actions">{CLASSES.map(c=><label key={c}><input type="checkbox" checked={roster.includes(c)} onChange={()=>setRoster(old=>old.includes(c)?old.length>1?old.filter(x=>x!==c):old:[...old,c])}/>{CHARACTERS[c].name}</label>)}<button className="button small secondary" onClick={restart}>New simulation</button><span className="muted">Resonance ×{state.resonance.toFixed(3)}</span></div></details>
  {error&&<p className="notice error" role="alert">{error}</p>}

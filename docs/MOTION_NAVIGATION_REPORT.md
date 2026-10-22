@@ -1,5 +1,7 @@
 # NOVA ZENITH — four motion/navigation priorities
 
+Historical vector-motion pass. The current illustrated chibi implementation supersedes its art/renderer details: [PAINTED_CHIBI_PASS.md](PAINTED_CHIBI_PASS.md).
+
 Baseline: f2c20b21d2dd0e41d8935d87ccb393f9ebe5a020. Scope: focused presentation changes, not a new release certification.
 
 ## Implemented

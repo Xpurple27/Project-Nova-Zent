@@ -1,31 +1,22 @@
-# NOVA ZENITH — motion and sprite contract
+# NOVA ZENITH — current painted sprite contract
 
-Art direction: ART_BIBLE.md. Runtime metadata: src/game/animation/manifest.ts. Pose definitions: motion.ts; shared body/weapon geometry: rig.ts. All vector rigs, sprite exports and environment textures are original project code/art, dedicated CC0. Painted portraits retain their documented project-generated provenance.
+The user's22October2026 request replaces the earlier vector/non-chibi renderer. Runtime metadata is `game/animation/painted.ts`; walking/story clip metadata remains in `manifest.ts`.
 
-| Mode | Renderer / frame | Columns | Origin / direction |
-|---|---|---|---|
-| Hero combat | Native articulated SVG, 128×160 design coordinates | Continuous joint interpolation, at most 30 DOM updates/sec | Feet (64,150), face enemy right |
-| Guardian combat | Native articulated SVG, 256×256 design coordinates | Continuous joint interpolation | Feet (128,246), 1.6× body scale |
-| Hero exploration | 96×128 SVG sheet, displayed at 0.5× | **8** | (0.5,1); idleS/walkS/idleW/walkW/idleE/walkE/idleN/walkN |
-| Guardian cinematic | Dedicated 192×192 sheet | **8**, four rows | idle/entrance/phase/death; sampled by existing server story time |
-| Hero / Guardian combat export | 128×160 / 256×256 SVG sheet | 4 | Replaceable fallback/card export; native combat does not load this sheet |
-| Normal enemies | Existing 128×160 combat / 96×128 world sheets | 4 | Existing Hound/Shaman clips retained |
+| Export | Grid / cell | Source |
+|---|---|---|
+| Four hero atlases | 4×6,192×192 | assets/chibi/{class}-atlas.webp |
+| Hound / Shaman | 4×3,256×256 | assets/chibi/{enemy}-atlas.webp |
+| Guardian | 4×4,256×256 | assets/chibi/guardian-atlas.webp |
+| Hero world | 4×8,96×128 | assets/chibi/{class}-world.webp |
+| Guardian story | 4×4,192×192 | assets/chibi/guardian-story.webp |
+| Locations | 1152×768 | assets/environment/painted/{scene}.webp |
 
-The previous blanket four-frame contract is intentionally replaced by per-asset `columns`/`clip.frames`. Phaser computes row offsets from metadata; never hardcode row×4. This change serves the requested smoother gait without changing gameplay contracts. Exploration loops in720ms (8 distinct opposed arm/leg poses, knee flexion); idle loops1800ms. Foot point, scale and direction convention stay consistent. North removes frontal eyes; west mirrors east. Collision always uses map/player-radius data, never artwork bounds.
+Hero rows:0basic attack windup/contact/recovery;1east gait;2south gait;3north gait;4skills2/3/Ultimate/reaction;5hurt/kneel/prone/rise. West mirrors east. World rows retain idleS/walkS/idleW/walkW/idleE/walkE/idleN/walkN. Idle and portrait selection exports derive from the same atlas, so the chosen hero is the hero played.
 
-Native runtime: RigFigure updates joint transforms with requestAnimationFrame, throttled to30Hz; React does not rerender each frame. A semantic AnimationController consumes original monotonic event sequences. All sixteen class skills have individually authored windup/impact/recovery poses. Basic actions are760–900ms, specials mostly900–1200ms, ultimates1400ms; boss Cataclysm1500ms. Existing bounded combat playback may compress/cut cosmetic recovery during catch-up; server deadlines never wait for animation.
+No trimming/rotation in runtime grids. Transparent alpha, consistent equal cells/footpoints and readable chibi scale. Phaser uses96×128 frames at0.65display scale, metadata row×columns, and retains movement/interpolation/collision. Actual gait has four distinct painted frames per direction. Reduced motion uses a static semantic frame. Missing walking sheet uses the matching illustrated idle asset; missing both leaves a readable name/shadow, not an abstract humanoid.
 
-KO1150ms: fall, hold final body/leg pose until authoritative revive. Recovery1200ms starts at exactly that pose, kneels, stands. Guardian death1800ms: surge, buckle, collapse, dark chest core, broken halo; holds final pose. Loading an already KO/dead snapshot seeks the terminal pose instead of replaying death. Failed Thief/Mage/Healer reactions show impact, not a successful dodge/ward; Warrior still shows partial block. The presentation reads the existing reaction result, never grades it.
+PaintedFigure selects semantic frames with a disposable30Hz cosmetic sampler; it never computes gameplay. Basic attacks use multi-frame poses; specials/Ultimate/reactions hold their distinct painted key pose with the existing VFX and travel accents. KO stays prone, revive rises, enemy death stays defeated. See PAINTED_CHIBI_PASS.md for the bounded attack→hit→fall→result→world bridge.
 
-Reduced motion: a fixed semantic pose, no joint loop/shake. Cleanup cancels RAF, media/visibility listeners and timers; Phaser destroys the canvas/textures/subscriptions at scene unmount. No physics, damage, HP, resources, AI or progression is computed by animation. Missing normal-enemy sheets retain readable fallback labels; missing exploration textures retain procedural figures/scenery. Native hero/Guardian bodies have no network-image dependency.
+Approximate decoded budgets: four combat hero atlases13.5MiB, current enemy up to4MiB, background3.38MiB (~21MiB before browser overhead). Four world sheets6MiB + background3.38MiB + chamber story2.25MiB (~12MiB). Later scenes are loaded on demand/disposed. WebP transfer totals are separate from decoded texture memory. No physical-phone FPS guarantee is implied.
 
-Regeneration:
-
-- `node scripts/generate-placeholder-art.mjs` → authored hero/Guardian sheets (wrapper for generate-motion-sheets.ts).
-- `node --import tsx scripts/generate-environments.ts` → five ground textures.
-
-Use the manifest to replace sheets with PNG/WebP exports later. Maintain transparent untrimmed frames, clip row names, origins and equipment/palette identity. Painted production frames remain an optional asset replacement; these vector rigs are the implemented motion artwork.
-
-Budget: four eight-column world sheets decode to12MiB total; one scene ground texture≈3.38MiB. Boss chamber adds a dedicated4.5MiB cinematic sheet instead of the13MiB full combat sheet. Approximately20MiB of decoded textures in the heaviest four-player exploration scene, disposed on scene change. SVG source sizes are not decoded GPU memory. Physical Android/iOS FPS has not been measured; do not call browser emulation a device benchmark.
-
-QA: /dev/presentation provides a motion studio (only with NOVA_ENABLE_OFFLINE_DEMO=1), pose scrubbing and local KO/revive controls. It cannot alter any multiplayer state. Tests cover joint motion, continuous loops, every skill mapping, terminal lifecycle, direction, XML renderability and browser cleanup/reduced motion.
+Art generation: built-in imagegen with original project references; prompts in docs/art/CHIBI_PAINTED_PROMPTS.json. Mechanical export: scripts/pack-painted-art.mjs. Do not run the legacy vector generator over painted assets. Existing vector pose/rig helpers are retained for regression/history and small travel accents, not as the active character artwork. All server authority, deadlines and grading remain unchanged.

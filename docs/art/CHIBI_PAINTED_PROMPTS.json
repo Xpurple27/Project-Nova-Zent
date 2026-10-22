@@ -1,0 +1,81 @@
+{
+  "generator": "Built-in image_gen.imagegen",
+  "created": "2026-10-22",
+  "intent": "User-requested illustrated chibi likeness, painted environments and readable enemy deaths",
+  "heroes": [
+    {
+      "kind": "warrior",
+      "ref": "warrior",
+      "identity": "A rugged adult male protector, short salt-and-pepper hair, short stubble, blue-steel segmented rune armor, navy split cape, huge angular tower shield with bright cyan fracture in LEFT hand, broad steel sword in RIGHT hand. Preserve the face, hair, color blocking, sword/shield design of the reference.",
+      "skills": "shield wall raised in front; commanding provoke shout with raised sword; Last Bastion heroic planted shield stance; defensive block."
+    },
+    {
+      "kind": "mage",
+      "ref": "mage",
+      "identity": "Female formula mage, silver bob hair with long violet side braid, violet/ivory asymmetric scholar coat with brass geometric trim, violet crystal astrolabe staff in LEFT hand, free RIGHT hand with floating formula. Preserve recognizable reference identity and gear, modest practical chibi clothing.",
+      "skills": "overcharge two-hand staff energy; downward frost seal cast; meteor overhead staff casting; arcane barrier open-palm defensive cast."
+    },
+    {
+      "kind": "thief",
+      "ref": "thief",
+      "identity": "Young adult male tactical scout, exposed face, swept black hair with teal streak, dark teal split scarf, charcoal fitted light armor, two hooked silver daggers. No hood. Preserve reference face/hair/equipment and teal accent.",
+      "skills": "crouched focus stance; expose weakness forward low blade pointing; shadow execution crossed dagger strike; dodge low side lean."
+    },
+    {
+      "kind": "healer",
+      "ref": "healer",
+      "identity": "Female restorative guardian with warm brown skin, dark braided crown hair, ivory fan mantle, ivory/gold robes with plum inner panels, large golden gyroscope sun-orb staff in LEFT hand. Preserve distinctive reference face/hair/skin tone/equipment.",
+      "skills": "healing wave staff toward ground; blessing raised free hand; divine recovery staff above head with both arms raised; ward defensive staff held across body."
+    }
+  ],
+  "enemies": [
+    {
+      "id": "hound",
+      "transparent": true,
+      "prompt": "Use case: stylized-concept. Production hand-painted anime-chibi RPG enemy animation atlas for NOVA ZENITH. ONE transparent PNG, exactly FOUR equal columns by THREE equal rows, canvas 1024x768, 12 equal square cells. Every cell same dark wolf beast, unmistakably a four-legged SHADOW HOUND: blue-black shaggy fur, teal-crimson corruption veins, pointed ears, red eyes, sharp fangs, long tail, muscular paws. Appealing polished game illustration with textured shading, consistent chibi-fantasy style, never abstract geometry. ALL poses face LEFT toward heroes, same scale/camera/lighting and foot baseline at90% each cell, transparent padding, no floor/background/text/grid. Row1: four subtle idle/breathing poses. Row2: wind up crouch, pounce left, biting claw impact, return to stance. Row3: recoiling hit, staggering hurt, visibly falling onto side, lying defeated motionless eyes closed. No text, no border, no UI. Actual alpha transparency."
+    },
+    {
+      "id": "shaman",
+      "transparent": true,
+      "prompt": "Use case: stylized-concept. Production hand-painted anime-chibi RPG enemy animation atlas for NOVA ZENITH. ONE transparent PNG, exactly FOUR equal columns by THREE equal rows, canvas 1024x768, 12 square cells. Every cell same unmistakable CORRUPTED SHAMAN: small hunched goblin sorcerer, dusky violet-green face with pointed ears, bone/antler headdress, tattered plum robes, crooked wooden skull staff with glowing violet orb, sinister expressive eyes. Polished painted cute-dark fantasy, detailed readable face/clothing, never abstract shapes. ALL poses face LEFT toward heroes, same scale/camera/lighting and feet at90% cell height, 10% transparent margins. Row1: four subtle idle/breathing poses. Row2: drawing staff back to charge, holding orb aloft, clearly thrusting spell to left, recovering. Row3: recoiling from hit, buckling, falling onto side with staff, lying defeated eyes closed. No text, grid, floor, UI, watermark. Actual alpha transparency."
+    },
+    {
+      "id": "guardian",
+      "transparent": true,
+      "ref": "/workspace/scratch/9499484f240f/nova-zenith/public/assets/identity/guardian.webp",
+      "prompt": "Use case: identity-preserve. Adapt reference Abyss Guardian to painted anime/chibi dark fantasy boss sprite atlas, same visual family as polished chibi RPG hero art. Keep the huge stone arms, faceted hollow head, segmented broken octagonal halo, exposed red diamond core, gold rune plate edges and crimson corruption. A recognizable ancient stone sentinel, imposing compact heavy body, not abstract vector shapes. ONE transparent PNG strictly FOUR equal columns by FOUR equal rows (16 square cells), canvas1024x1024, same figure scale/camera/upper-left light, no clipping/overlap. Faces LEFT toward the heroes. Feet at90% each cell, 10% transparent margin. Row1: four idle/slow stone breathing poses. Row2: claw windup, clear sweeping claw strike left, spear-casting thrust left, recovery. Row3: roar/arms spread, protective barrier crossed arms, infernal charge arms/core raised, cataclysm arms slammed down. Row4: recoiling hurt, buckling knees with cracked armor, falling apart into readable body/rubble, defeated collapsed rubble with fully dark chest core and lowered head. True alpha transparency, no floor, no labels or grid, no UI."
+    }
+  ],
+  "environments": [
+    {
+      "id": "village",
+      "description": "Ember Village at dusk with warm amber windows, original blue slate roofs and carved geometric timber. Center-top at (49%,35%) a tall Eight-Seal Obelisk on a small engraved stone plaza, floating tiny cyan runes. One main cozy house footprint x27%..43%, y18%..35%; second house x60%..74%, y68%..85%. Two mature trees at (71%,23%) and (80%,77%)."
+    },
+    {
+      "id": "forest_path",
+      "description": "Twilight enchanted forest with deep teal foliage and soft painterly moss, gold-white Arcane Formula markers, an ancient fractured root meridian at (52%,34%) with subtle crimson corruption. Four tree/solid obstacle footprints at x29%..36% y23%..35%, x37%..44% y66%..78%, x68%..75% y17%..30%, x76%..84% y70%..84%. Keep the center path clear."
+    },
+    {
+      "id": "ruins_path",
+      "description": "A ruined formula aqueduct through a mossy forest, increasing violet/crimson corruption. Iconic broken patterned aqueduct arch centered around (56%,30%), above the main route, ancient brass measuring rings and faded mathematical carvings. Four tree/stone obstacle footprints at x29%..36% y23%..35%, x37%..44% y66%..78%, x68%..75% y17%..30%, x76%..84% y70%..84%. Clear center path."
+    },
+    {
+      "id": "ancient_ruins",
+      "description": "Ancient Zenith ruins, luminous gold/ivory ancient mathematical architecture, intricate octagonal seals, patterned square stone floor, old ivy. Giant iconic octagonal rune doorway centered at (86%,45%) with open passage facing center route. Four pillar footprints at x30%..36% y23%..40%, x30%..36% y65%..82%, x68%..75% y23%..40%, x68%..75% y65%..82%."
+    },
+    {
+      "id": "boss_chamber",
+      "description": "A vast final seal chamber inside ancient ruins, ominous plum-black stone, a giant cracked octagonal seal engine centered at (71%,50%), concentric gold/brass rings, crimson fissures radiating across the floor, monumental walls/floating seal shards along edges. Dark focal platform for the boss at (72%,48%) but NO creature painted in. Four pillar footprints at x30%..36% y23%..40%, x30%..36% y65%..82%, x68%..75% y23%..40%, x68%..75% y65%..82%."
+    }
+  ],
+  "generationTemplates": {
+    "hero": "Use case: identity-preserve. Asset type: production2D RPG CHIBI animation sprite atlas for NOVA ZENITH. Adapt the attached original hero artwork into a polished hand-painted anime chibi,2.7 heads tall, expressive recognizable head and compact complete body/equipment. Insert the hero identity specification and skills text from heroes above. Transparent PNG, exactly FOUR columns×SIX rows,1024×1536,24 square equal cells. Same character/face/equipment/scale, orthographic3/4 top-down camera, upper-left lighting. Center x, feet at88%cell height, transparent padding, no text/grid/floor/UI. Row1: right-facing neutral idle, attack windup, unmistakable contact/strike, recovery. Row2: right-facing walk left-foot/pass/right-foot/opposite-pass. Row3: same walk facing south with visible face. Row4: same walk facing north with back of hair/clothes. Row5: four class skill key poses from the hero specification. Row6: hurt, buckling kneel, fallen lying KO, rising. Preserve reference face/hair/colors/signature gear; no overlap/cropping/abstract vector shapes; actual alpha transparency.",
+    "environment": "Use case: stylized-concept. Playable2D chibi RPG exploration background NOVA ZENITH,1536×1024, top-down3/4 orthographic map, no horizon/sky. Detailed hand-painted anime fantasy with textured wood/stone/grass. Insert the scene description/obstacle placement from environments above. Main unobstructed route x5–96%, centered y50%, height14%. Spawn11%,50%; exit90%,50%. Full canvas walkable-ground composition, soft landmarks, perimeter atmosphere, low-contrast center for readable characters/HUD. No characters/enemies/NPCs/UI/text/grid/watermark.",
+    "parameters": {
+      "hero_and_enemy_transparent_background": true,
+      "environment_transparent_background": false,
+      "reference_inputs": "existing original hero/Guardian WebP artwork under public/assets/identity/",
+      "mechanical_export": "scripts/pack-painted-art.mjs"
+    }
+  }
+}

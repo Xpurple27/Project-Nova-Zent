@@ -5,6 +5,7 @@ import {rigSymbols,rigBody,type RigDirection} from '../src/game/animation/rig';
 import {poseAt} from '../src/game/animation/motion';
 
 async function sheet(kind:ActorKind,a:SpriteAsset,world=false){
+ if(!a.source.endsWith('.svg'))return; // Never overwrite the user-requested painted WebP assets.
  const definitions=world?(['S','N','E','W'] as RigDirection[]).map(d=>rigSymbols(kind,a.id+d,d)).join(''):rigSymbols(kind,a.id);
  let frames='';
  for(const [name,clip] of Object.entries(a.clips))for(let frame=0;frame<clip.frames;frame++){

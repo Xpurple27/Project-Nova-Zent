@@ -39,10 +39,10 @@ test('failed dodge/barrier/ward shows impact, while Warrior still partially bloc
  assert.equal(animationFor({seq:1,turn:1,type:'REACTION_RESOLVED',actorId:'p',text:'Reaction — FAILED'},'p','WARRIOR'),'shield');
  const c=new AnimationController('THIEF'),e={seq:5,turn:1,type:'ACTION_RESOLVED',actorId:'p',skillId:'thief.shadow_execution',text:'Execution — PERFECT'};c.sync(100,0);c.consume(e,'p',100);c.consume(e,'p',400);assert.equal(c.startedAt,100);
 });
-test('8-column locomotion/story sheets are manifest driven, direction-aware, and parse as actual SVG',async()=>{
+test('painted locomotion/story sheets are manifest-driven, transparent and direction-aware',async()=>{
  const {default:sharp}=await import('sharp');
- for(const kind of ['WARRIOR','MAGE','THIEF','HEALER'] as ActorKind[]){const a=SPRITES[kind].exploration;assert.equal(a.columns,8);assert.equal(a.clips.walkN.frames,8);const text=readFileSync('public'+a.source,'utf8');assert.ok(text.includes('data-bone="kneeL"'));assert.ok(text.includes(kind.toLowerCase()+'-worldN-head'));const metadata=await sharp(Buffer.from(text)).metadata();assert.equal(metadata.width,768);assert.equal(metadata.height,1024);await sharp(Buffer.from(text)).resize(192).png().toBuffer();}
- const boss=readFileSync('public'+GUARDIAN_STORY.source,'utf8');await sharp(Buffer.from(boss)).resize(192).png().toBuffer();assert.equal(GUARDIAN_STORY.columns,8);assert.ok(!rigSvg('MAGE','north',REST,'N').includes('m5-16 4 1m2 2'));assert.ok(rigSvg('MAGE','east',REST,'E').includes('m5-16 4 1m2 2'));
+ for(const kind of ['WARRIOR','MAGE','THIEF','HEALER'] as ActorKind[]){const a=SPRITES[kind].exploration;assert.equal(a.columns,4);assert.equal(a.clips.walkN.frames,4);const file=readFileSync('public'+a.source),metadata=await sharp(file).metadata();assert.equal(metadata.format,'webp');assert.equal(metadata.width,384);assert.equal(metadata.height,1024);assert.ok(metadata.hasAlpha);await sharp(file).resize(192).png().toBuffer();}
+ const boss=readFileSync('public'+GUARDIAN_STORY.source);await sharp(boss).resize(192).png().toBuffer();assert.equal(GUARDIAN_STORY.columns,4);assert.ok(!rigSvg('MAGE','north',REST,'N').includes('m5-16 4 1m2 2'));assert.ok(rigSvg('MAGE','east',REST,'E').includes('m5-16 4 1m2 2'));
 });
 test('all maps provide collision-safe guidance; detours never cut an expanded corner',()=>{
  for(const map of Object.values(MAPS)){

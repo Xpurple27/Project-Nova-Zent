@@ -59,6 +59,8 @@ export function createScenery(scene:Phaser.Scene,map:WorldMap){
   focal.fillStyle(0x080e20,.6);focal.fillEllipse(990,350,135,260);focal.lineStyle(2,identity.accent,.5);focal.strokeTriangle(990,260,1030,330,950,330);
   if(map.id==='BOSS_CHAMBER'){g.lineStyle(3,0xc6677f,.45);for(let i=0;i<8;i++){const a=i*Math.PI/4;g.lineBetween(820+Math.cos(a)*35,390+Math.sin(a)*18,820+Math.cos(a)*230,390+Math.sin(a)*110);}g.fillStyle(0x0c0c20,.4);g.fillEllipse(820,335,400,110);}
  }
+ // Painted map already contains the architecture. Geometry remains a load-failure fallback.
+ if(scene.textures.exists('landscape-'+map.id)){g.setVisible(false);focal.setVisible(false);}
  const cracks=scene.add.graphics().setDepth(2);cracks.lineStyle(4,0xe46c92,.9);cracks.lineBetween(560,195,545,265);cracks.lineBetween(545,265,588,308);cracks.lineBetween(588,308,675,340);cracks.lineBetween(588,308,475,355);cracks.lineStyle(15,0xb54b82,.12);cracks.lineBetween(560,195,675,340);cracks.setAlpha(0);
  const keeper=scene.add.container(575,350).setDepth(350),npc=scene.add.graphics();npc.fillStyle(0xdbc29e);npc.fillCircle(0,-37,7);npc.fillStyle(0x9984b6);npc.fillTriangle(-15,0,0,-32,15,0);npc.lineStyle(2,0xe1d29b);npc.strokeTriangle(-15,0,0,-32,15,0);keeper.add(npc);keeper.setVisible(map.id==='VILLAGE');
  const tether=scene.add.graphics().setDepth(351);tether.lineStyle(2,0xe88ba4,.8);tether.strokeCircle(0,-20,24);tether.strokeTriangle(0,-50,20,-10,-20,-10);keeper.add(tether);tether.setAlpha(0);
