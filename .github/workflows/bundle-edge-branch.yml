@@ -25,4 +25,4 @@ jobs:
           git add supabase/functions/nova-combat/index.js
           git commit -m 'chore: regenerate nova-combat edge bundle'
           git push
-# feature-only helper; remove after merge
+# feature-only helper; final regeneration trigger
