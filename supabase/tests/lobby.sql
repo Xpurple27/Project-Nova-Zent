@@ -35,6 +35,7 @@ begin
  for i in 1..4 loop
  perform set_config('request.jwt.claim.sub',users[i]::text,true);
  perform set_config('request.jwt.claims',jsonb_build_object('sub',users[i],'role','authenticated')::text,true);
+ room:=public.nz_lobby_v1('SELECT_SCHOOL',jsonb_build_object('roomId',rid,'schoolLevel','SMP'),gen_random_uuid());
  room:=public.nz_lobby_v1('SELECT_CLASS',jsonb_build_object('roomId',rid,'classId',class_names[i]),gen_random_uuid());
  end loop;
  perform set_config('request.jwt.claim.sub',users[2]::text,true);

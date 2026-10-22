@@ -1,1 +1,4 @@
-.formula-panel{max-width:100%;overflow-x:hidden}.formula-prompt,.answer{min-width:0;overflow-wrap:anywhere}.formula-prompt .katex,.answer .katex{display:inline-block;max-width:100%;overflow-x:auto;overflow-y:hidden;vertical-align:middle}
+.formula-panel{max-width:min(560px,100%);overflow-x:hidden}.formula-prompt,.answer{min-width:0;overflow-wrap:anywhere}.formula-prompt .katex,.answer .katex{display:inline-block;max-width:100%;overflow-x:auto;overflow-y:hidden;vertical-align:middle}
+
+/* The option letter stays compact; mathematical text may shrink/wrap independently. */
+.answer>span:last-child{flex:1;min-width:0;max-width:100%;overflow-wrap:anywhere}

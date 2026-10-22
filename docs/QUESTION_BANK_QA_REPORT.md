@@ -1,31 +1,38 @@
-# Production bank QA — 21 October 2026
-Result: 120 reviewed/active private production items imported; 60 pilot items retired, no historical QA rows deleted. Review method: agent mathematical/editorial review plus exact-rational option/solution checks. This is not independent human/psychometric validation.
+# School/class question bank QA — 22 October 2026
 
-| Difficulty | Items | Estimated solve time | Server limit |
-|---|---:|---:|---:|
-| Easy | 40 | 7s | 12s |
-| Medium | 40 | 12s | 18s |
-| Hard | 40 | 19s | 25s |
+**Published:** 720 reviewed/active private items. Original 120 items were classified and retained; 600 new instances were added. The 120 exposed `school-*` fixtures and 60 pilot items are retired; no historical QA/assignment rows were deleted.
 
-| Category | Count |
+| Character | SD | SMP | SMA | Total |
+|---|---:|---:|---:|---:|
+| Warrior | 60 | 60 | 60 | 180 |
+| Mage | 60 | 60 | 60 | 180 |
+| Thief | 60 | 60 | 60 | 180 |
+| Healer | 60 | 60 | 60 | 180 |
+| Total | 240 | 240 | 240 | 720 |
+
+Each cell has **20 Easy + 20 Medium + 20 Hard**. Global difficulty counts are 240/240/240. Live database queries confirm zero active unclassified or unreviewed rows.
+
+| Category | Items |
 |---|---:|
-| Arithmetic | 9 |
-| Number sense | 10 |
-| Fractions | 10 |
-| Ratio | 11 |
-| Percentage | 12 |
-| Algebra | 9 |
-| Linear equations | 8 |
-| Formula substitution | 8 |
-| Sequences | 6 |
-| Pattern | 6 |
-| Logic | 6 |
-| Probability | 8 |
-| Geometry | 10 |
-| Measurement | 7 |
+| Arithmetic | 47 |
+| Number sense | 72 |
+| Fractions | 29 |
+| Ratio | 45 |
+| Percentage | 91 |
+| Algebra | 54 |
+| Linear equations | 32 |
+| Formula | 71 |
+| Sequences | 61 |
+| Pattern | 23 |
+| Logic | 42 |
+| Probability | 65 |
+| Geometry | 57 |
+| Measurement | 31 |
 
-Affinity memberships overlap: Warrior55, Mage35, Thief26, Healer40. These are preferences, not isolated banks. 120 distinct reasoning/template family labels; zero exact normalized prompt duplicates; every item has four numerically distinct options and one matching key. Exact fractions/decimal calculations were re-evaluated independently of option order; geometric/pattern/counting derivations were also inspected. Sequence items state arithmetic/geometric/explicit recurrence rules. A fractional-equation distractor issue was corrected before import. Distractors target operation/sign/base/unit mistakes; no second correct equivalent fraction is present.
+Every item has four distinct option texts and exactly one keyed option. A private exact-rational audit checked all 720 stored solution expressions against every numeric option: **720 checked, zero failures, zero equivalent second correct options**. Prompt derivations/prerequisites were reviewed separately. Normalized prompt duplicate check: zero. Stored family labels distinguish grade/difficulty contexts; they should not be interpreted as 464 independent pedagogical archetypes. The new items include controlled parameter variants, not 600 unrelated solution methods.
 
-Only reviewed ACTIVE production-v1 items are eligible. The answer bank is absent from the public Git repository and frontend bundle; API/network privacy verification and live backend results are recorded in HIGH_6_13_EXECUTION.md. The public pilot seed is historical material and no longer served.
+Primary school/class memberships are disjoint for exact coverage. Historical affinity tags can overlap (Warrior216/Mage180/Thief180/Healer180) and do not change serving boundaries. Expected solving times are estimates within the existing 12/18/25-second limits. No independent human/psychometric review, classroom timing study or physical-device student UAT was performed.
 
-Limits: solve times/difficulty are estimates, not classroom measurements. No claim of IRT calibration, adaptive learning, exam equivalence or validated accessibility across every device. Conduct a small student playtest before broad release, particularly Hard Overcharge timing. Mathematical cleanliness is prioritized over unnecessary lore in prompts.
+Security checks: ordinary authenticated users cannot execute V3 bank/import RPCs, directly read the answer table or edit grade/HP/state. Only the actor's safe assignment is serialized. Retired public fixtures remain present historically but are not served. Original active questions and the 600 new answer keys were not added to public Git history.
+
+Implementation/verification details: [SCHOOL_LEVEL_IMPLEMENTATION.md](SCHOOL_LEVEL_IMPLEMENTATION.md).

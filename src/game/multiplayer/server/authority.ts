@@ -3,16 +3,16 @@ import type {EnemyId} from '../../enemies/definitions';
 /** SERVER MODULE: never import from a client component. Keys are private persistence data. */
 import {startCampaign,worldPhase,advanceWorld,applyWorld,encounterWon,type Campaign} from '../../exploration/campaign';
 import { CHARACTERS, GAME, SKILL_BY_ID } from '../../config';
-import type { BossAction, CharacterClass, CombatAction, CombatState, QuestionDifficulty } from '../../core/types';
+import type { BossAction, CharacterClass, CombatAction, CombatState, QuestionDifficulty, SchoolLevel } from '../../core/types';
 import { gradeAnswer } from '../../core/math';
 import { createCombat, decideBoss, finishRound, resolvePlayerActions, resolveReaction, resolveRune, validateAction } from '../../combat/engine';
 import { applyBossIntent, event, random } from '../../boss/engine';
 import { magnitude } from '../../combat/effects';
 import type { CombatSnapshot, Intent, OnlinePhase, SafeAssignment } from '../protocol';
-export type Member={id:string;userId:string;classId:CharacterClass;nickname:string;seat:number;lastSeen:number;left?:boolean};
-export type BankQuestion={id:string;difficulty:QuestionDifficulty;category:string;prompt:string;options:{id:string;text:string}[];correct:string;affinity?:CharacterClass[]};
+export type Member={id:string;userId:string;classId:CharacterClass;nickname:string;seat:number;schoolLevel?:SchoolLevel;lastSeen:number;left?:boolean};
+export type BankQuestion={id:string;difficulty:QuestionDifficulty;category:string;prompt:string;options:{id:string;text:string}[];correct:string;affinity?:CharacterClass[];schoolLevel?:SchoolLevel;classId?:CharacterClass};
 export type Assignment=SafeAssignment & {questionId:string;correctToken:string;answeredAt:number|null;selectedToken:string|null;cancelled?:boolean};
-export type Authority={campaign?:Campaign;schema:1;sessionId:string;roomId:string;engine:CombatState;turnId:string;identityRound?:number;phase:OnlinePhase;phaseId:string;openedAt:number;deadline:number|null;actors:string[];actions:Record<string,CombatAction>;assignments:Assignment[];used:Record<string,string[]>;intent:BossAction|null;departed:string[];suspendedAt:number|null};
+export type Authority={schoolLevels?:Record<string,SchoolLevel>;campaign?:Campaign;schema:1;sessionId:string;roomId:string;engine:CombatState;turnId:string;identityRound?:number;phase:OnlinePhase;phaseId:string;openedAt:number;deadline:number|null;actors:string[];actions:Record<string,CombatAction>;assignments:Assignment[];used:Record<string,string[]>;intent:BossAction|null;departed:string[];suspendedAt:number|null};
 export type Context={now:number;members:Member[];bank:BankQuestion[];id:()=>string};
 export class CombatFault extends Error { constructor(public code:string){super(code);} }
 function fail(code:string):never {throw new CombatFault(code);}
@@ -49,13 +49,15 @@ export function startAuthority(sessionId:string,roomId:string,members:Member[],s
  const sorted=[...members].sort((a,b)=>a.seat-b.seat),engine=createCombat(sorted.map(m=>m.classId),seed);
  engine.mode='SERVER';engine.party.forEach((p,i)=>{p.id=sorted[i].id;p.name=sorted[i].nickname;p.seat=sorted[i].seat;});
  const d:Authority={schema:1,sessionId,roomId,engine,turnId:'',phase:'COMBAT_PLANNING',phaseId:'',openedAt:c.now,deadline:null,actors:[],actions:{},assignments:[],used:{},intent:null,departed:[],suspendedAt:null};
+ if(sorted.some(m=>m.schoolLevel))d.schoolLevels=Object.fromEntries(sorted.map(m=>[m.id,m.schoolLevel??'SMA']));
  if(campaign)return startCampaign(d,c);
  event(engine,'SESSION_STARTED','NOVA ZENITH — Abyss Guardian encounter');openTurn(d,c);return d;
 }
 function assign(d:Authority,c:Context,actorId:string,difficulty:QuestionDifficulty,context:Assignment['context'],bonus=0){
  const actor=d.engine.party.find(p=>p.id===actorId)!;
  const preferred:Record<CharacterClass,string[]>={WARRIOR:['ARITHMETIC','NUMBER_SENSE','RATIO','LINEAR_EQUATIONS'],MAGE:['ALGEBRA','FORMULA','LINEAR_EQUATIONS'],THIEF:['PATTERN','SEQUENCES','LOGIC','PROBABILITY'],HEALER:['PERCENTAGE','RATIO','MEASUREMENT','FRACTIONS']};
- const used=d.used[actorId]??[],all=c.bank.filter(q=>q.difficulty===difficulty);
+ const schoolLevel=d.schoolLevels?.[actorId]??c.members.find(m=>m.id===actorId)?.schoolLevel;
+ const used=d.used[actorId]??[],all=c.bank.filter(q=>q.difficulty===difficulty&&(!schoolLevel||q.schoolLevel===schoolLevel)&&(!q.classId||q.classId===actor.classId));
  if(!all.length)fail('QUESTION_BANK_UNAVAILABLE');
  const globalUsed=new Set(Object.values(d.used).flat()),thisPhase=new Set(d.assignments.map(q=>q.questionId));
  const fresh=all.filter(q=>!globalUsed.has(q.id)),ownFresh=all.filter(q=>!used.includes(q.id)),base=fresh.length?fresh:ownFresh.length?ownFresh:all;
@@ -65,7 +67,7 @@ function assign(d:Authority,c:Context,actorId:string,difficulty:QuestionDifficul
  const options=q.options.map(o=>({id:o.id,token:c.id(),text:o.text}));
  for(let i=options.length-1;i>0;i--){const j=Math.floor(random(d.engine)*(i+1));[options[i],options[j]]=[options[j],options[i]];}
  const startsAt=c.now+1000;
- d.assignments.push({id:c.id(),actorId,context,difficulty,prompt:q.prompt,options:options.map(({token,text})=>({token,text})),startsAt,deadline:startsAt+GAME.timers[difficulty]+bonus,performance:null,questionId:q.id,correctToken:options.find(o=>o.id===q.correct)!.token,answeredAt:null,selectedToken:null});
+ d.assignments.push({...(schoolLevel?{schoolLevel}:{}),id:c.id(),actorId,context,difficulty,prompt:q.prompt,options:options.map(({token,text})=>({token,text})),startsAt,deadline:startsAt+GAME.timers[difficulty]+bonus,performance:null,questionId:q.id,correctToken:options.find(o=>o.id===q.correct)!.token,answeredAt:null,selectedToken:null});
  d.used[actorId]=[...used,q.id].slice(-100);
 }
 function completePhase(d:Authority,c:Context){
@@ -193,8 +195,9 @@ export function applyIntent(input:Authority,uid:string,intent:Intent,c:Context):
 export function publicSnapshot(d:Authority,version:string,now:number,uid?:string,members:Member[]=[]):CombatSnapshot {
  const myActorId=members.find(m=>m.userId===uid)?.id??null;
  const q=d.assignments.find(q=>q.actorId===myActorId&&q.context===currentContext(d));
- const assignment=q?{id:q.id,actorId:q.actorId,context:q.context,difficulty:q.difficulty,prompt:q.prompt,options:q.options,startsAt:q.startsAt,deadline:q.deadline,performance:q.performance}:null;
- return {...(d.engine.enemyId?{enemyId:d.engine.enemyId}:{}),...(d.campaign?{campaign:d.campaign}:{}),schema:1,sessionId:d.sessionId,roomId:d.roomId,version,serverNow:now,turnId:d.turnId,turn:d.engine.turn,phase:d.phase,phaseId:d.phaseId,deadline:d.deadline,partySize:d.engine.partySize,party:d.engine.party,boss:d.engine.boss,effects:d.engine.effects,combo:d.engine.combo,pendingBoss:d.intent,progress:d.engine.party.map(p=>({actorId:p.id,locked:!!d.actions[p.id],answered:d.assignments.some(a=>a.actorId===p.id&&a.context===currentContext(d)&&a.performance!==null),performance:d.assignments.find(a=>a.actorId===p.id&&a.context===currentContext(d))?.performance??null})),events:d.engine.events.slice(-50),lastEventSeq:d.engine.nextSeq-1,assignment,myActorId};
+ const assignment=q?{id:q.id,actorId:q.actorId,context:q.context,difficulty:q.difficulty,...(q.schoolLevel?{schoolLevel:q.schoolLevel}:{}),prompt:q.prompt,options:q.options,startsAt:q.startsAt,deadline:q.deadline,performance:q.performance}:null;
+ const schoolLevel=myActorId?(d.schoolLevels?.[myActorId]??members.find(m=>m.id===myActorId)?.schoolLevel):undefined;
+ return {...(schoolLevel?{schoolLevel}:{}),...(d.engine.enemyId?{enemyId:d.engine.enemyId}:{}),...(d.campaign?{campaign:d.campaign}:{}),schema:1,sessionId:d.sessionId,roomId:d.roomId,version,serverNow:now,turnId:d.turnId,turn:d.engine.turn,phase:d.phase,phaseId:d.phaseId,deadline:d.deadline,partySize:d.engine.partySize,party:d.engine.party,boss:d.engine.boss,effects:d.engine.effects,combo:d.engine.combo,pendingBoss:d.intent,progress:d.engine.party.map(p=>({actorId:p.id,locked:!!d.actions[p.id],answered:d.assignments.some(a=>a.actorId===p.id&&a.context===currentContext(d)&&a.performance!==null),performance:d.assignments.find(a=>a.actorId===p.id&&a.context===currentContext(d))?.performance??null})),events:d.engine.events.slice(-50),lastEventSeq:d.engine.nextSeq-1,assignment,myActorId};
 }
 
 function startEncounter(d:Authority,c:Context,enemyId:EnemyId){

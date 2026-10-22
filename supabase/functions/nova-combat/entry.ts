@@ -10,7 +10,7 @@ const uuid=v=>typeof v==='string'&&v.length===36&&v[8]==='-'&&v[13]==='-'&&v[18]
 async function rpc(name,args={}){const {data,error}=await db.rpc(name,args);if(error)throw new Error(error.message);return data;}
 const persistence={
  load:(sessionId,uid,token,requestId,intent)=>rpc('nz_combat_load_v1',{p_session:sessionId,p_uid:uid,p_token:token,p_request:requestId,p_payload:intent}),
- bank:(sessionId)=>rpc('nz_combat_bank_v2',{p_session:sessionId}),
+ bank:(sessionId)=>rpc('nz_combat_bank_v3',{p_session:sessionId}),
  commit:c=>rpc('nz_combat_commit_v1',{p_session:c.sessionId,p_expected:c.expected,p_document:c.document,p_public:c.projection,p_due:c.due,p_uid:c.uid,p_request:c.requestId,p_payload:c.payload,p_result:c.result,p_cutoff:c.cutoff})
 };
 Deno.serve(async req=>{

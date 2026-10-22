@@ -822,6 +822,7 @@ function startAuthority(sessionId, roomId, members, seed, c, campaign = false) {
     p.seat = sorted[i].seat;
   });
   const d = { schema: 1, sessionId, roomId, engine, turnId: "", phase: "COMBAT_PLANNING", phaseId: "", openedAt: c.now, deadline: null, actors: [], actions: {}, assignments: [], used: {}, intent: null, departed: [], suspendedAt: null };
+  if (sorted.some((m) => m.schoolLevel)) d.schoolLevels = Object.fromEntries(sorted.map((m) => [m.id, m.schoolLevel ?? "SMA"]));
   if (campaign) return startCampaign(d, c);
   event(engine, "SESSION_STARTED", "NOVA ZENITH \u2014 Abyss Guardian encounter");
   openTurn(d, c);
@@ -830,7 +831,8 @@ function startAuthority(sessionId, roomId, members, seed, c, campaign = false) {
 function assign(d, c, actorId, difficulty, context, bonus = 0) {
   const actor = d.engine.party.find((p) => p.id === actorId);
   const preferred = { WARRIOR: ["ARITHMETIC", "NUMBER_SENSE", "RATIO", "LINEAR_EQUATIONS"], MAGE: ["ALGEBRA", "FORMULA", "LINEAR_EQUATIONS"], THIEF: ["PATTERN", "SEQUENCES", "LOGIC", "PROBABILITY"], HEALER: ["PERCENTAGE", "RATIO", "MEASUREMENT", "FRACTIONS"] };
-  const used = d.used[actorId] ?? [], all = c.bank.filter((q2) => q2.difficulty === difficulty);
+  const schoolLevel = d.schoolLevels?.[actorId] ?? c.members.find((m) => m.id === actorId)?.schoolLevel;
+  const used = d.used[actorId] ?? [], all = c.bank.filter((q2) => q2.difficulty === difficulty && (!schoolLevel || q2.schoolLevel === schoolLevel) && (!q2.classId || q2.classId === actor.classId));
   if (!all.length) fail("QUESTION_BANK_UNAVAILABLE");
   const globalUsed = new Set(Object.values(d.used).flat()), thisPhase = new Set(d.assignments.map((q2) => q2.questionId));
   const fresh = all.filter((q2) => !globalUsed.has(q2.id)), ownFresh = all.filter((q2) => !used.includes(q2.id)), base = fresh.length ? fresh : ownFresh.length ? ownFresh : all;
@@ -843,7 +845,7 @@ function assign(d, c, actorId, difficulty, context, bonus = 0) {
     [options[i], options[j]] = [options[j], options[i]];
   }
   const startsAt = c.now + 1e3;
-  d.assignments.push({ id: c.id(), actorId, context, difficulty, prompt: q.prompt, options: options.map(({ token, text }) => ({ token, text })), startsAt, deadline: startsAt + GAME.timers[difficulty] + bonus, performance: null, questionId: q.id, correctToken: options.find((o) => o.id === q.correct).token, answeredAt: null, selectedToken: null });
+  d.assignments.push({ ...schoolLevel ? { schoolLevel } : {}, id: c.id(), actorId, context, difficulty, prompt: q.prompt, options: options.map(({ token, text }) => ({ token, text })), startsAt, deadline: startsAt + GAME.timers[difficulty] + bonus, performance: null, questionId: q.id, correctToken: options.find((o) => o.id === q.correct).token, answeredAt: null, selectedToken: null });
   d.used[actorId] = [...used, q.id].slice(-100);
 }
 function completePhase(d, c) {
@@ -1029,8 +1031,9 @@ function applyIntent(input, uid, intent, c) {
 function publicSnapshot(d, version, now, uid, members = []) {
   const myActorId = members.find((m) => m.userId === uid)?.id ?? null;
   const q = d.assignments.find((q2) => q2.actorId === myActorId && q2.context === currentContext(d));
-  const assignment = q ? { id: q.id, actorId: q.actorId, context: q.context, difficulty: q.difficulty, prompt: q.prompt, options: q.options, startsAt: q.startsAt, deadline: q.deadline, performance: q.performance } : null;
-  return { ...d.engine.enemyId ? { enemyId: d.engine.enemyId } : {}, ...d.campaign ? { campaign: d.campaign } : {}, schema: 1, sessionId: d.sessionId, roomId: d.roomId, version, serverNow: now, turnId: d.turnId, turn: d.engine.turn, phase: d.phase, phaseId: d.phaseId, deadline: d.deadline, partySize: d.engine.partySize, party: d.engine.party, boss: d.engine.boss, effects: d.engine.effects, combo: d.engine.combo, pendingBoss: d.intent, progress: d.engine.party.map((p) => ({ actorId: p.id, locked: !!d.actions[p.id], answered: d.assignments.some((a) => a.actorId === p.id && a.context === currentContext(d) && a.performance !== null), performance: d.assignments.find((a) => a.actorId === p.id && a.context === currentContext(d))?.performance ?? null })), events: d.engine.events.slice(-50), lastEventSeq: d.engine.nextSeq - 1, assignment, myActorId };
+  const assignment = q ? { id: q.id, actorId: q.actorId, context: q.context, difficulty: q.difficulty, ...q.schoolLevel ? { schoolLevel: q.schoolLevel } : {}, prompt: q.prompt, options: q.options, startsAt: q.startsAt, deadline: q.deadline, performance: q.performance } : null;
+  const schoolLevel = myActorId ? d.schoolLevels?.[myActorId] ?? members.find((m) => m.id === myActorId)?.schoolLevel : void 0;
+  return { ...schoolLevel ? { schoolLevel } : {}, ...d.engine.enemyId ? { enemyId: d.engine.enemyId } : {}, ...d.campaign ? { campaign: d.campaign } : {}, schema: 1, sessionId: d.sessionId, roomId: d.roomId, version, serverNow: now, turnId: d.turnId, turn: d.engine.turn, phase: d.phase, phaseId: d.phaseId, deadline: d.deadline, partySize: d.engine.partySize, party: d.engine.party, boss: d.engine.boss, effects: d.engine.effects, combo: d.engine.combo, pendingBoss: d.intent, progress: d.engine.party.map((p) => ({ actorId: p.id, locked: !!d.actions[p.id], answered: d.assignments.some((a) => a.actorId === p.id && a.context === currentContext(d) && a.performance !== null), performance: d.assignments.find((a) => a.actorId === p.id && a.context === currentContext(d))?.performance ?? null })), events: d.engine.events.slice(-50), lastEventSeq: d.engine.nextSeq - 1, assignment, myActorId };
 }
 function startEncounter(d, c, enemyId) {
   const previous = d.engine, engine = createEncounter(previous.party.map((p) => p.classId), enemyId, previous.seed);
@@ -1183,7 +1186,7 @@ async function rpc(name, args = {}) {
 }
 var persistence = {
   load: (sessionId, uid, token, requestId, intent) => rpc("nz_combat_load_v1", { p_session: sessionId, p_uid: uid, p_token: token, p_request: requestId, p_payload: intent }),
-  bank: (sessionId) => rpc("nz_combat_bank_v2", { p_session: sessionId }),
+  bank: (sessionId) => rpc("nz_combat_bank_v3", { p_session: sessionId }),
   commit: (c) => rpc("nz_combat_commit_v1", { p_session: c.sessionId, p_expected: c.expected, p_document: c.document, p_public: c.projection, p_due: c.due, p_uid: c.uid, p_request: c.requestId, p_payload: c.payload, p_result: c.result, p_cutoff: c.cutoff })
 };
 Deno.serve(async (req) => {

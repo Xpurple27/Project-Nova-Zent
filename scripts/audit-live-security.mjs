@@ -11,6 +11,7 @@ await Promise.all([1,2,3].map(i=>rpc(i,'JOIN',{code:room.code,nickname:'QA secur
 assert.equal((await rpc(4,'JOIN',{code:room.code,nickname:'QA capacity'})).data.message,'ROOM_FULL');checks.push('fifth join denied');
 const claim=await Promise.all([rpc(0,'SELECT_CLASS',{roomId:room.id,classId:'MAGE'}),rpc(1,'SELECT_CLASS',{roomId:room.id,classId:'MAGE'})]);assert.equal(claim.filter(r=>r.status<300).length,1);checks.push('simultaneous class claim has one winner');
 for(let i=0;i<4;i++)ok(await rpc(i,'SELECT_CLASS',{roomId:room.id,classId:['WARRIOR','MAGE','THIEF','HEALER'][i]}));
+for(let i=0;i<4;i++)ok(await rpc(i,'SELECT_SCHOOL',{roomId:room.id,schoolLevel:['SD','SMP','SMA','SD'][i]}));
 for(let i=0;i<4;i++)ok(await rpc(i,'SET_READY',{roomId:room.id,ready:true}));
 const id=crypto.randomUUID(),starts=await Promise.all([rpc(0,'START',{roomId:room.id},id),rpc(0,'START',{roomId:room.id},id)]);starts.forEach(ok);assert.equal(starts[0].data.sessionId,starts[1].data.sessionId);checks.push('duplicate concurrent Start returns one session');
 for(const[path,body,method]of[

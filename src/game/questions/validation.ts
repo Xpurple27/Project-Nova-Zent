@@ -2,7 +2,7 @@
 export const CATEGORIES=['ARITHMETIC','NUMBER_SENSE','FRACTIONS','RATIO','PERCENTAGE','ALGEBRA','LINEAR_EQUATIONS','FORMULA','SEQUENCES','PATTERN','LOGIC','PROBABILITY','GEOMETRY','MEASUREMENT'] as const;
 export type ProductionItem={revision_id:string;logical_question_id:string;revision_number:number;difficulty:'EASY'|'MEDIUM'|'HARD';tags:string[];prompt:string;options_json:{id:string;text:string}[];correct_option_id:string;explanation_json:{explanation:string;expectedSolution:string;family:string;affinity:string[];reviewStatus:string};status:'DRAFT'|'ACTIVE'|'RETIRED';content_version:string;estimated_solve_ms:number;reviewed_by:string};
 export function validateQuestionBank(value:unknown,{minimum=120,perDifficulty=40}={}){
- if(!Array.isArray(value)||value.length<minimum||value.length>500)throw Error('INVALID_BANK_SIZE');
+ if(!Array.isArray(value)||value.length<minimum||value.length>1000)throw Error('INVALID_BANK_SIZE');
  const items=value as ProductionItem[],ids=new Set<string>(),prompts=new Set<string>(),families=new Map<string,number>(),difficulty:Record<string,number>={},categories:Record<string,number>={},affinity:Record<string,number>={};
  const uuid=/^[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}$/i;
  for(const q of items){
@@ -19,4 +19,22 @@ export function validateQuestionBank(value:unknown,{minimum=120,perDifficulty=40
  for(const d of ['EASY','MEDIUM','HARD'])if((difficulty[d]??0)<perDifficulty)throw Error('INSUFFICIENT_DIFFICULTY_COVERAGE');
  if([...families.values()].some(n=>n>3))throw Error('REPETITIVE_TEMPLATE_FAMILY');
  return {count:items.length,difficulty,categories,affinity,uniqueFamilies:families.size,duplicatePrompts:0};
+}
+
+/** Validate a private full publication; school level and combat difficulty are independent axes. */
+export type SchoolItem=ProductionItem&{school_level:'SD'|'SMP'|'SMA';question_class_id:'WARRIOR'|'MAGE'|'THIEF'|'HEALER'};
+export function validateSchoolQuestionBank(value:unknown){
+ const report=validateQuestionBank(value,{minimum:720,perDifficulty:240});
+ if(report.count!==720)throw Error('INVALID_SCHOOL_BANK_SIZE');
+ const coverage:Record<string,number>={};
+ for(const q of value as SchoolItem[]){
+  const e=q.explanation_json as ProductionItem['explanation_json']&{schoolLevel?:string;primaryClass?:string};
+  if(!['SD','SMP','SMA'].includes(q.school_level)||!['WARRIOR','MAGE','THIEF','HEALER'].includes(q.question_class_id)
+   ||e.schoolLevel!==q.school_level||e.primaryClass!==q.question_class_id||!e.affinity.includes(q.question_class_id)
+   ||!q.tags.includes('SCHOOL_'+q.school_level)||!q.tags.includes('AFFINITY_'+q.question_class_id))throw Error('INVALID_SCHOOL_CLASSIFICATION');
+  const key=[q.school_level,q.question_class_id,q.difficulty].join(':');coverage[key]=(coverage[key]??0)+1;
+ }
+ for(const level of ['SD','SMP','SMA'])for(const cls of ['WARRIOR','MAGE','THIEF','HEALER'])for(const difficulty of ['EASY','MEDIUM','HARD'])
+  if(coverage[[level,cls,difficulty].join(':')]!==20)throw Error('INSUFFICIENT_SCHOOL_CLASS_DIFFICULTY_COVERAGE');
+ return {...report,coverage};
 }
