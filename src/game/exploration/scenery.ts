@@ -17,7 +17,7 @@ function seal(g:Phaser.GameObjects.Graphics,x:number,y:number,r:number,color:num
 }
 export function createScenery(scene:Phaser.Scene,map:WorldMap){
  const identity=SCENE_IDENTITY[map.id],g=scene.add.graphics().setDepth(-20);
- g.fillStyle(identity.dark);g.fillRect(0,0,map.width,map.height);
+ if(scene.textures.exists('landscape-'+map.id))scene.add.image(0,0,'landscape-'+map.id).setOrigin(0).setDepth(-40);else{g.fillStyle(identity.dark);g.fillRect(0,0,map.width,map.height);}
  // Quiet repeating ground facets, then a readable eastward route.
  for(let x=0;x<map.width;x+=64)for(let y=0;y<map.height;y+=64){g.lineStyle(1,identity.accent,.025);g.strokeTriangle(x,y+32,x+32,y,x+64,y+32);}
  g.fillStyle(0x060c19,.22);g.fillEllipse(580,420,1110,255);g.fillStyle(0x8a8069,.17);g.fillRoundedRect(45,334,1060,105,40);
@@ -28,20 +28,25 @@ export function createScenery(scene:Phaser.Scene,map:WorldMap){
   if(r.kind==='HOUSE'){
    g.fillStyle(0x43505c);g.fillRoundedRect(r.x,r.y,r.width,r.height,5);g.lineStyle(3,0xc6b186,.4);g.strokeRect(r.x+6,r.y+8,r.width-12,r.height-12);
    g.fillStyle(0x293347);g.fillTriangle(r.x-12,r.y+12,cx,r.y-65,r.x+r.width+12,r.y+12);g.lineStyle(3,0x8ea1af,.7);g.lineBetween(r.x-12,r.y+12,cx,r.y-65);g.lineBetween(cx,r.y-65,r.x+r.width+12,r.y+12);
+   for(let y=r.y-45;y<r.y+6;y+=14){const t=(y-(r.y-65))/77;g.lineStyle(1,0x9a8e91,.35);g.lineBetween(cx-r.width*.5*t,y,cx+r.width*.5*t,y);}
+   g.lineStyle(5,0x272f3e,.6);g.lineBetween(r.x+12,r.y+16,r.x+12,r.y+r.height);g.lineBetween(r.x+r.width-12,r.y+16,r.x+r.width-12,r.y+r.height);
    g.fillStyle(0xd4b47d,.9);g.fillCircle(cx,r.y+60,18);g.lineStyle(4,0x253242);g.strokeTriangle(cx,r.y+42,cx+16,r.y+68,cx-16,r.y+68);g.fillStyle(0x182433);g.fillRect(r.x+18,r.y+80,25,50);
    g.lineStyle(2,identity.accent,.6);g.lineBetween(cx,r.y-30,cx,r.y-8);g.strokeCircle(cx,r.y-18,12);
   }else if(r.kind==='TREE'){
    g.fillStyle(0x454146);g.fillRect(cx-7,r.y+18,14,r.height-20);g.lineStyle(4,0x383846);g.lineBetween(cx,r.y+45,r.x+8,r.y+20);g.lineBetween(cx,r.y+40,r.x+r.width-5,r.y+5);
-   g.fillStyle(map.id==='RUINS_PATH'?0x384052:0x244d47);g.fillTriangle(r.x-18,r.y+45,cx,r.y-55,r.x+r.width+18,r.y+45);g.fillTriangle(r.x-8,r.y+12,cx,r.y-75,r.x+r.width+8,r.y+12);
+   const leaves=map.id==='RUINS_PATH'?[0x303b4c,0x3b4f57,0x4b6067]:[0x1e403d,0x2c564b,0x416b58];
+   for(let i=0;i<7;i++){const angle=i*2.4,ox=Math.cos(angle)*(i%3)*12,oy=Math.sin(angle)*14;g.fillStyle(leaves[i%3]);g.fillEllipse(cx+ox,r.y-12+oy,r.width*.95,r.height*.65);g.lineStyle(1,identity.accent,.12);g.strokeEllipse(cx+ox,r.y-12+oy,r.width*.95,r.height*.65);}
+   g.lineStyle(3,0x493f40,.8);g.lineBetween(cx,r.y+r.height-8,cx-20,r.y+r.height+9);g.lineBetween(cx,r.y+r.height-8,cx+23,r.y+r.height+8);
    g.lineStyle(2,identity.accent,.4);g.lineBetween(cx,r.y-35,cx,r.y+60);g.lineBetween(cx,r.y+5,cx+20,r.y-10);
   }else{
    g.fillStyle(0x424052);g.fillRect(r.x,r.y,r.width,r.height);g.fillStyle(0x656172);g.fillTriangle(r.x-8,r.y,r.x+r.width/2,r.y-30,r.x+r.width+8,r.y);g.lineStyle(2,identity.accent,.5);g.strokeRect(r.x+9,r.y+12,r.width-18,r.height-24);
+   g.lineStyle(1,0xc4b697,.25);for(let y=r.y+22;y<r.y+r.height;y+=22)g.lineBetween(r.x+3,y,r.x+r.width-3,y);
    for(let y=r.y+27;y<r.y+r.height-10;y+=30){g.strokeTriangle(cx,y-8,cx+11,y+10,cx-11,y+10);g.lineBetween(cx-15,y+16,cx+15,y+16);}
   }
  }
  const focal=scene.add.graphics().setDepth(-10);
  if(map.id==='VILLAGE'){
-  seal(g,560,300,150,identity.accent,.38);focal.fillStyle(0x1c2538);focal.fillTriangle(530,308,560,130,590,308);focal.lineStyle(3,0xa4c4d4,.7);focal.strokeTriangle(530,308,560,130,590,308);focal.lineStyle(3,0x9ce3e1,.9);focal.lineBetween(560,160,548,235);focal.lineBetween(548,235,572,262);focal.lineBetween(572,262,560,300);focal.fillStyle(0xb9f3e3);focal.fillCircle(560,193,5);
+  seal(g,560,300,150,identity.accent,.38);g.fillStyle(0x252f3e,.7);g.fillEllipse(560,311,120,35);g.lineStyle(3,0x9eabac,.6);g.strokeEllipse(560,311,120,35);focal.fillStyle(0x1c2538);focal.fillTriangle(530,308,560,130,590,308);focal.fillStyle(0x667d89);focal.fillTriangle(560,130,560,304,530,308);focal.fillStyle(0x354554);focal.fillTriangle(560,130,590,308,560,304);focal.lineStyle(3,0xa4c4d4,.7);focal.strokeTriangle(530,308,560,130,590,308);focal.lineStyle(3,0x9ce3e1,.9);focal.lineBetween(560,160,548,235);focal.lineBetween(548,235,572,262);focal.lineBetween(572,262,560,300);focal.fillStyle(0xb9f3e3);focal.fillCircle(560,193,5);
   for(let i=0;i<8;i++){const a=i*Math.PI/4,x=560+Math.cos(a)*130,y=280+Math.sin(a)*65;focal.lineStyle(2,identity.accent,.65);focal.strokeRect(x-5,y-9,10,18);}
  }else if(map.id==='FOREST_PATH'||map.id==='RUINS_PATH'){
   seal(g,600,268,110,identity.accent,.4);focal.fillStyle(0x414353);focal.fillTriangle(560,285,596,192,634,285);focal.lineStyle(3,0xc58aab,.65);focal.lineBetween(596,215,583,245);focal.lineBetween(583,245,612,275);

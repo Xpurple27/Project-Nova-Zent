@@ -1,5 +1,7 @@
 # NOVA ZENITH — visual overhaul implementation report
 
+Historical report for the first identity pass. The subsequent motion/navigation implementation is recorded in [MOTION_NAVIGATION_REPORT.md](MOTION_NAVIGATION_REPORT.md); current runtime details are in SPRITE_PIPELINE.md.
+
 Baseline: `290f0c859fcf24d686a0620f82eb2ccc6756c43e`. This report covers the focused visual/presentation request, not a new MVP release certification.
 
 ## 1. Ringkasan perubahan
