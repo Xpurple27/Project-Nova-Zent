@@ -2,6 +2,8 @@ import type {EnemyId} from '../enemies/definitions';
 
 export const CLASSES = ["WARRIOR", "MAGE", "THIEF", "HEALER"] as const;
 export type CharacterClass = typeof CLASSES[number];
+export const SCHOOL_LEVELS = ["SD", "SMP", "SMA"] as const;
+export type SchoolLevel = typeof SCHOOL_LEVELS[number];
 export type ResourceType = "GUARD" | "MANA" | "FOCUS" | "FAITH";
 export type CharacterStats = { maxHp: number; speed: number; resistance: number };
 export type CharacterState = "ALIVE" | "KO";
@@ -13,7 +15,6 @@ export type QuestionDifficulty = "EASY" | "MEDIUM" | "HARD";
 export type QuestionCategory = "ARITHMETIC" | "NUMBER_SENSE" | "FRACTIONS" | "ALGEBRA" | "LINEAR_EQUATIONS" | "FORMULA" | "RATIO" | "PATTERN" | "SEQUENCES" | "LOGIC" | "PROBABILITY" | "PERCENTAGE" | "GEOMETRY" | "MEASUREMENT";
 export type MathPerformance = "PERFECT" | "SUCCESS" | "FAILED";
 export type MathQuestion = { id: string; difficulty: QuestionDifficulty; category: QuestionCategory; prompt: string; options: string[] };
-// Answers exist only in development fixtures, never in the shared online question DTO.
 export type DevelopmentQuestion = MathQuestion & { answerIndex: number; explanation: string };
 export type SkillType = "DEFENSE" | "BUFF" | "DEBUFF" | "HEAL" | "OFFENSE";
 export type SkillTarget = "ENEMY" | "MAIN_ENEMY" | "PARTY" | "SELF";
@@ -55,4 +56,4 @@ export type CombatState = {
 export type Combat = CombatState;
 export type ConnectionStatus = "ONLINE" | "RECONNECTING" | "DISCONNECTED" | "INACTIVE";
 export type RoomPlayer = { id: string; userId: string; nickname: string; classId: CharacterClass | null; ready: boolean; status: "ACTIVE" | "INACTIVE" | "LEFT"; seat: number; lastSeenAt: string };
-export type RoomState = { id: string; sessionId: string; code: string; coordinatorId: string | null; state: GameState; version: string; players: RoomPlayer[]; expiresAt: string; serverNow: string };
+export type RoomState = { id: string; sessionId: string; code: string; coordinatorId: string | null; schoolLevel: SchoolLevel; state: GameState; version: string; players: RoomPlayer[]; expiresAt: string; serverNow: string };
