@@ -1075,7 +1075,7 @@ async function execute2(p, sessionId, uid, intent, requestId, token = null, id =
     if (read) {
       const due = dueAt(d);
       if (due !== null && due <= l.now) {
-        c.bank = await p.bank();
+        c.bank = await p.bank(l.sessionId);
         const next = advance(d, c);
         mutation = JSON.stringify(next) !== JSON.stringify(d) || mutation;
         d = next;
@@ -1175,25 +1175,15 @@ var url = Deno.env.get("SUPABASE_URL");
 var key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 var db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 var cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info", "Access-Control-Allow-Methods": "POST, OPTIONS", "Content-Type": "application/json", "Cache-Control": "no-store" };
+var uuid = (v) => typeof v === "string" && v.length === 36 && v[8] === "-" && v[13] === "-" && v[18] === "-" && v[23] === "-" && [...v.replaceAll("-", "")].every((c) => "0123456789abcdefABCDEF".includes(c));
 async function rpc(name, args = {}) {
   const { data, error } = await db.rpc(name, args);
   if (error) throw new Error(error.message);
   return data;
 }
-var bankCache;
-var bankCachedAt = 0;
 var persistence = {
   load: (sessionId, uid, token, requestId, intent) => rpc("nz_combat_load_v1", { p_session: sessionId, p_uid: uid, p_token: token, p_request: requestId, p_payload: intent }),
-  bank: async () => {
-    if (!bankCache || Date.now() - bankCachedAt > 6e4) {
-      bankCachedAt = Date.now();
-      bankCache = rpc("nz_combat_bank_v1");
-      bankCache.catch(() => {
-        bankCache = null;
-      });
-    }
-    return await bankCache;
-  },
+  bank: (sessionId) => rpc("nz_combat_bank_v2", { p_session: sessionId }),
   commit: (c) => rpc("nz_combat_commit_v1", { p_session: c.sessionId, p_expected: c.expected, p_document: c.document, p_public: c.projection, p_due: c.due, p_uid: c.uid, p_request: c.requestId, p_payload: c.payload, p_result: c.result, p_cutoff: c.cutoff })
 };
 Deno.serve(async (req) => {
@@ -1204,7 +1194,7 @@ Deno.serve(async (req) => {
     const raw = await limitedBody(req);
     const body = JSON.parse(raw);
     sessionId = body.sessionId;
-    if (typeof sessionId !== "string" || !/^[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}$/i.test(sessionId)) throw new Error("INVALID_SESSION");
+    if (!uuid(sessionId)) throw new Error("INVALID_SESSION");
     let uid = null, token = null, intent, requestId = null;
     if (body.worker === true) {
       if (typeof body.token !== "string" || body.token.length !== 36) throw new Error("INVALID_WORKER_CAPABILITY");
@@ -1219,7 +1209,7 @@ Deno.serve(async (req) => {
       if (!requestBudget.allow(uid, Date.now())) throw new Error("RATE_LIMITED");
       intent = parseIntent(body.intent);
       if (!["GET", "START", "PUMP"].includes(intent.kind)) {
-        if (typeof body.requestId !== "string" || !/^[\da-f]{8}(-[\da-f]{4}){3}-[\da-f]{12}$/i.test(body.requestId)) throw new Error("INVALID_REQUEST_ID");
+        if (!uuid(body.requestId)) throw new Error("INVALID_REQUEST_ID");
         requestId = body.requestId;
       }
     }

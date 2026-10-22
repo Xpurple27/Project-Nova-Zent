@@ -2,7 +2,7 @@ import { advance, applyIntent, CombatFault, dueAt, publicSnapshot, startAuthorit
 import type { CombatSnapshot, Intent } from '../protocol';
 export type Loaded={campaignEnabled?:boolean;receipt?:CombatSnapshot;sessionId:string;roomId:string;state:string;version:string;now:number;document:Authority|null;members:Member[];seed:string};
 export type Commit={sessionId:string;expected:string;document:Authority;projection:CombatSnapshot;due:number|null;uid:string|null;requestId:string|null;payload:Intent|null;result:CombatSnapshot|null;cutoff:number|null};
-export interface Persistence {load(sessionId:string,uid:string|null,token:string|null,requestId:string|null,intent:Intent|null):Promise<Loaded>;bank():Promise<BankQuestion[]>;commit(c:Commit):Promise<{conflict?:boolean;receipt?:CombatSnapshot;version?:string;result?:CombatSnapshot}>;}
+export interface Persistence {load(sessionId:string,uid:string|null,token:string|null,requestId:string|null,intent:Intent|null):Promise<Loaded>;bank(sessionId:string):Promise<BankQuestion[]>;commit(c:Commit):Promise<{conflict?:boolean;receipt?:CombatSnapshot;version?:string;result?:CombatSnapshot}>;}
 export async function execute(p:Persistence,sessionId:string,uid:string|null,intent:Intent,requestId:string|null,token:string|null=null,id=()=>crypto.randomUUID()):Promise<CombatSnapshot|null>{
  for(let attempt=0;attempt<16;attempt++){
   const l=await p.load(sessionId,uid,token,requestId,intent);if(l.receipt)return l.receipt;
@@ -15,7 +15,7 @@ export async function execute(p:Persistence,sessionId:string,uid:string|null,int
   const read=['GET','START','PUMP'].includes(intent.kind);
   if(read){
    const due=dueAt(d);
-   if(due!==null&&due<=l.now){c.bank=await p.bank();const next=advance(d,c);mutation=JSON.stringify(next)!==JSON.stringify(d)||mutation;d=next;}
+   if(due!==null&&due<=l.now){c.bank=await p.bank(l.sessionId);const next=advance(d,c);mutation=JSON.stringify(next)!==JSON.stringify(d)||mutation;d=next;}
    if(!mutation)return uid?publicSnapshot(d,l.version,l.now,uid,l.members):null;
   }else{
    if(!uid)throw new CombatFault('UNAUTHENTICATED');
@@ -30,7 +30,6 @@ export async function execute(p:Persistence,sessionId:string,uid:string|null,int
   if(saved.conflict)continue;
   if(saved.receipt)return saved.receipt;
   if(!read)return {...result!,version:saved.version!};
-  // One transition per commit; reload authoritative DB time and handle any immediately-ready phase.
  }
  throw new CombatFault('STATE_CONFLICT_RETRY');
 }
