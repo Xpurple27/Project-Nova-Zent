@@ -1,6 +1,6 @@
-# School/class question bank QA — 22 October 2026
+# School/class question bank QA — 27 October 2026
 
-**Published:** 720 reviewed/active private items. Original 120 items were classified and retained; 600 new instances were added. The 120 exposed `school-*` fixtures and 60 pilot items are retired; no historical QA/assignment rows were deleted.
+**Published:** 720 reviewed/active private items with `qualityVersion=3`. The former 720 active identities were retired atomically; their prompts/options/keys and assignment history remain intact. A transaction-level before/after checksum confirmed immutable historical content. No schema or combat-engine migration was needed.
 
 | Character | SD | SMP | SMA | Total |
 |---|---:|---:|---:|---:|
@@ -14,25 +14,44 @@ Each cell has **20 Easy + 20 Medium + 20 Hard**. Global difficulty counts are 24
 
 | Category | Items |
 |---|---:|
-| Arithmetic | 47 |
-| Number sense | 72 |
-| Fractions | 29 |
-| Ratio | 45 |
-| Percentage | 91 |
-| Algebra | 54 |
-| Linear equations | 32 |
-| Formula | 71 |
-| Sequences | 61 |
-| Pattern | 23 |
-| Logic | 42 |
-| Probability | 65 |
-| Geometry | 57 |
-| Measurement | 31 |
+| Arithmetic | 42 |
+| Number sense | 87 |
+| Fractions | 24 |
+| Ratio | 63 |
+| Percentage | 69 |
+| Algebra | 36 |
+| Linear equations | 45 |
+| Formula | 69 |
+| Sequences | 42 |
+| Pattern | 18 |
+| Logic | 45 |
+| Probability | 81 |
+| Geometry | 69 |
+| Measurement | 30 |
 
-Every item has four distinct option texts and exactly one keyed option. A private exact-rational audit checked all 720 stored solution expressions against every numeric option: **720 checked, zero failures, zero equivalent second correct options**. Prompt derivations/prerequisites were reviewed separately. Normalized prompt duplicate check: zero. Stored family labels distinguish grade/difficulty contexts; they should not be interpreted as 464 independent pedagogical archetypes. The new items include controlled parameter variants, not 600 unrelated solution methods.
+Every item has four numerically distinct options and exactly one keyed option. The private exact-rational audit checked 720 solution expressions and **2,160 misconception-derived wrong-option expressions**: zero failures and zero equivalent second correct answers. An independent limited parser also derived 132 answers from displayed prompts; the remaining 588 prompt derivations received agent editorial review rather than a claimed universal word-problem proof. All 3,581 math spans render with strict KaTeX. No normalized duplicate prompts were found.
 
-Primary school/class memberships are disjoint for exact coverage. Historical affinity tags can overlap (Warrior216/Mage180/Thief180/Healer180) and do not change serving boundaries. Expected solving times are estimates within the existing 12/18/25-second limits. No independent human/psychometric review, classroom timing study or physical-device student UAT was performed.
+The baseline had 591 items with four consecutive unit-spaced options. The reviewed publication has one, justified by counting an interval's inclusive/exclusive endpoints. Error models replace arbitrary answer-offset fillers. Positions are 180/180/180/180 before the server's existing per-assignment permutation.
 
-Security checks: ordinary authenticated users cannot execute V3 bank/import RPCs, directly read the answer table or edit grade/HP/state. Only the actor's safe assignment is serialized. Retired public fixtures remain present historically but are not served. Original active questions and the 600 new answer keys were not added to public Git history.
+Primary school/class memberships and current affinity are disjoint: 180 items per role, 240 per school and 240 per difficulty. There are 84 role/school concept groups, 252 tier-adapted forms and two or three controlled numerical variants per form. These are not 720 unrelated mathematical archetypes. Prompts are at most 177 characters/30 whitespace-separated words, excluding any reading-time claim for TeX.
 
-Implementation/verification details: [SCHOOL_LEVEL_IMPLEMENTATION.md](SCHOOL_LEVEL_IMPLEMENTATION.md).
+Expected authoring solve times 8.5/14/21.5 seconds fit the unchanged 12/18/25-second server windows. **Independent teacher/psychometric review, measured student solve times and physical-device student UAT remain NOT TESTED.** Tier calibration is editorial and relative to SD/SMP/SMA prerequisites, not a validated per-year curriculum diagnostic.
+
+## Verification evidence
+
+| Check | Result |
+|---|---|
+| Structural/classification/quality/strict KaTeX publication validator | PASS, 720 items, 36 tier pools, 2,160 reviewed distractors, 3,581 math spans |
+| Restricted exact-rational and displayed-prompt audit | PASS, 720 items, zero failures; 132 independent prompt derivations |
+| TypeScript / ESLint / Edge bundle consistency | PASS |
+| Unit/integration/authority regression suite | 111/111 PASS |
+| Production build with local QA routes enabled | PASS |
+| Chromium browser suite | 49/49 PASS, including 320/360/375/390/412/1280px, CDN-blocked TeX, refresh and safe answer intents |
+| Live SQL `lobby`, `combat`, `exploration`, `school`, `question-publication`, `question-quality` | 6/6 PASS, test fixtures rolled back |
+| Publication integrity | 720 active quality-V3 items; exact 20-per-tier coverage; historical content checksum unchanged |
+
+Security checks confirm ordinary `anon`/`authenticated` roles cannot read `private.questions` or execute the V3 bank/import RPCs. Only safe per-actor assignment data reaches the browser; answer keys, error-model derivations and the private authoring/export/import files are not committed. A regression test confirms replacing the current bank cannot regrade or reset an already assigned question.
+
+The mobile/browser suite uses isolated/mocked sessions and local engine simulations. A new four-device live hCaptcha-to-ending run was **NOT TESTED** in this content pass. The frozen combat resolver, skill difficulty mapping, timer and grading contracts were not changed.
+
+Full findings, role/tier comparison, implementation and limits: [QUESTION_QUALITY_REVIEW.md](QUESTION_QUALITY_REVIEW.md). Historical dropdown/720-bank foundation: [SCHOOL_LEVEL_IMPLEMENTATION.md](SCHOOL_LEVEL_IMPLEMENTATION.md).

@@ -1,5 +1,7 @@
 # Per-player school choice and 720-item publication
 
+Historical implementation report, 22 October 2026. The dropdown/authority contract below remains current; the active question content was replaced by the 27 October quality review. Current content evidence: [QUESTION_QUALITY_REVIEW.md](QUESTION_QUALITY_REVIEW.md) and [QUESTION_BANK_QA_REPORT.md](QUESTION_BANK_QA_REPORT.md).
+
 Baseline: `ee04e4743dd48da71194ffe905a9d6fe5286915f`. This pass preserves the recent per-player dropdown work and completes its authoritative contract, database source migration, bank tooling, testing and documentation.
 
 ## Result

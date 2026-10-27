@@ -32,3 +32,7 @@ test-results/
 playwright-report/
 
 .qa/
+
+# Python content audit intermediates
+__pycache__/
+*.py[cod]

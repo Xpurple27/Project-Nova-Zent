@@ -1,36 +1,19 @@
 "use client";
-import {useEffect,useRef} from "react";
+import {useMemo} from 'react';
+import {renderToString} from 'katex';
+import {splitMathText} from '@/game/questions/math-markup';
 
-declare global {
- interface Window { katex?: { render:(source:string,element:HTMLElement,options:{throwOnError:boolean;displayMode:boolean;strict:string})=>void } }
-}
-function splitMath(source:string){
- const parts:{math:boolean;text:string}[]=[];let cursor=0;
- const pattern=/\$(.+?)\$/gs;let match:RegExpExecArray|null;
- while((match=pattern.exec(source))){
-  if(match.index>cursor)parts.push({math:false,text:source.slice(cursor,match.index)});
-  parts.push({math:true,text:match[1]});cursor=match.index+match[0].length;
- }
- if(cursor<source.length)parts.push({math:false,text:source.slice(cursor)});
- return parts;
-}
+/** Renders presentation only. Grading and the original option token remain server-owned. */
 export default function MathText({children,className}:{children:string;className?:string}){
- const root=useRef<HTMLSpanElement>(null);
- useEffect(()=>{
-  const render=()=>{
-   if(!root.current||!window.katex)return false;
-   root.current.replaceChildren();
-   for(const part of splitMath(children)){
-    if(!part.math){root.current.append(document.createTextNode(part.text));continue;}
-    const span=document.createElement("span");
-    window.katex.render(part.text,span,{throwOnError:false,displayMode:false,strict:"warn"});root.current.append(span);
-   }
-   return true;
-  };
-  if(render())return;
-  const timer=window.setInterval(()=>{if(render())window.clearInterval(timer);},80);
-  const stop=window.setTimeout(()=>window.clearInterval(timer),4000);
-  return()=>{window.clearInterval(timer);window.clearTimeout(stop);};
- },[children]);
- return <span ref={root} className={className}>{children}</span>;
+ const parts=useMemo(()=>splitMathText(children).map(part=>{
+  if(part.kind==='text')return part;
+  try{
+   if(part.source.length>1200)throw Error('FORMULA_TOO_LONG');
+   const html=renderToString(part.source,{displayMode:part.display,output:'htmlAndMathml',throwOnError:true,strict:'error',trust:false,maxExpand:100,maxSize:10});
+   return {...part,html};
+  }catch{return {kind:'text' as const,source:part.source};}
+ }),[children]);
+ return <span className={className}>{parts.map((part,index)=>part.kind==='text'
+  ?<span key={index}>{part.source}</span>
+  :<span key={index} className={part.display?'math-rendered math-display':'math-rendered'} dangerouslySetInnerHTML={{__html:part.html}}/>)}</span>;
 }

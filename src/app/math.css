@@ -2,3 +2,8 @@
 
 /* The option letter stays compact; mathematical text may shrink/wrap independently. */
 .answer>span:last-child{flex:1;min-width:0;max-width:100%;overflow-wrap:anywhere}
+.math-rendered{display:inline;white-space:normal}
+.math-rendered .katex{font-size:1.12em;overscroll-behavior-x:contain;padding:0.12em 0}
+.math-display{display:block;max-width:100%;overflow-x:auto}
+.math-display .katex-display{margin:0.5em 0}
+.formula-panel .answer{min-height:52px;line-height:1.55}
